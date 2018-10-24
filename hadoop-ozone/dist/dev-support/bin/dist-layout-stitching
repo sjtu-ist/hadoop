@@ -109,5 +109,5 @@ cp -r "${ROOT}/hadoop-ozone/docs/target/classes/webapps/docs" ./share/hadoop/ozo
 cp -r "${ROOT}/hadoop-ozone/docs/target/classes/webapps/docs" ./share/hadoop/hdds/webapps/scm/
 
 #Copy docker compose files
-run cp -p -r "${ROOT}/hadoop-ozone/dist/src/main/compose" .
+run cp -p -R "${ROOT}/hadoop-ozone/dist/src/main/compose" .
 run cp -p -r "${ROOT}/hadoop-ozone/dist/src/main/smoketest" .
