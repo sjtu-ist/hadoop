@@ -84,7 +84,7 @@ public class SCMBlockProtocolServer implements ScmBlockLocationProtocol {
 
     RPC.setProtocolEngine(conf, ScmBlockLocationProtocolPB.class,
         ProtobufRpcEngine.class);
-    // SCM Block Service RPC
+    // SCM Block Service RPC.
     BlockingService blockProtoPbService =
         ScmBlockLocationProtocolProtos.ScmBlockLocationProtocolService
             .newReflectiveBlockingService(
