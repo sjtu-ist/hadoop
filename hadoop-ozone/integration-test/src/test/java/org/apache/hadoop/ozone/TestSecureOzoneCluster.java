@@ -17,16 +17,6 @@
  */
 package org.apache.hadoop.ozone;
 
-import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ADMINISTRATORS;
-import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_SECURITY_ENABLED_KEY;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.Callable;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
@@ -42,7 +32,6 @@ import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.security.KerberosAuthException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.authentication.client.AuthenticationException;
-import org.apache.hadoop.security.authentication.util.KerberosUtil;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.apache.hadoop.test.GenericTestUtils.LogCapturer;
 import org.apache.hadoop.test.LambdaTestUtils;
@@ -54,6 +43,19 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+
+import static org.apache.hadoop.hdds.HddsConfigKeys.OZONE_METADATA_DIRS;
+import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_ADMINISTRATORS;
+import static org.apache.hadoop.ozone.OzoneConfigKeys.OZONE_SECURITY_ENABLED_KEY;
 
 /**
  * Test class to for security enabled Ozone cluster.
@@ -143,7 +145,7 @@ public final class TestSecureOzoneCluster {
 
   private void setSecureConfig(Configuration conf) throws IOException {
     conf.setBoolean(OZONE_SECURITY_ENABLED_KEY, true);
-    String host = KerberosUtil.getLocalHostName();
+    String host = InetAddress.getLocalHost().getCanonicalHostName();
     String realm = miniKdc.getRealm();
     curUser = UserGroupInformation.getCurrentUser()
         .getUserName();
@@ -195,7 +197,7 @@ public final class TestSecureOzoneCluster {
     final String path = GenericTestUtils
         .getTempPath(UUID.randomUUID().toString());
     Path scmPath = Paths.get(path, "scm-meta");
-    conf.set(OzoneConfigKeys.OZONE_METADATA_DIRS, scmPath.toString());
+    conf.set(OZONE_METADATA_DIRS, scmPath.toString());
     conf.setBoolean(OzoneConfigKeys.OZONE_ENABLED, true);
     SCMStorage scmStore = new SCMStorage(conf);
     scmStore.setClusterId(clusterId);

@@ -129,6 +129,11 @@ public final class HddsConfigKeys {
       "hdds.x509.signature.algorithm";
   public static final String HDDS_X509_SIGNATURE_ALGO_DEFAULT = "SHA256withRSA";
 
-
-
+  // This configuration setting is used as a fallback location by all
+  // Ozone/HDDS services for their metadata. It is useful as a single
+  // config point for test/PoC clusters.
+  //
+  // In any real cluster where performance matters, the SCM, OM and DN
+  // metadata locations must be configured explicitly.
+  public static final String OZONE_METADATA_DIRS = "ozone.metadata.dirs";
 }

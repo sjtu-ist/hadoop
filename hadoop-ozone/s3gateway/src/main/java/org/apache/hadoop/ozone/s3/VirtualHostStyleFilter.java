@@ -34,6 +34,7 @@ import java.util.Arrays;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.fs.InvalidRequestException;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
+import org.apache.hadoop.ozone.s3.header.AuthenticationHeaderParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,11 +53,18 @@ public class VirtualHostStyleFilter implements ContainerRequestFilter {
 
   @Inject
   private OzoneConfiguration conf;
+
+  @Inject
+  private AuthenticationHeaderParser authenticationHeaderParser;
+
   private String[] domains;
 
   @Override
   public void filter(ContainerRequestContext requestContext) throws
       IOException {
+
+    authenticationHeaderParser.setAuthHeader(requestContext.getHeaderString(
+        HttpHeaders.AUTHORIZATION));
     domains = conf.getTrimmedStrings(OZONE_S3G_DOMAIN_NAME);
 
     if (domains.length == 0) {
@@ -66,6 +74,7 @@ public class VirtualHostStyleFilter implements ContainerRequestFilter {
     }
     //Get the value of the host
     String host = requestContext.getHeaderString(HttpHeaders.HOST);
+    host = checkHostWithoutPort(host);
     String domain = getDomainName(host);
 
     if (domain == null) {
@@ -138,6 +147,19 @@ public class VirtualHostStyleFilter implements ContainerRequestFilter {
       }
     }
     return match;
+  }
+
+  private String checkHostWithoutPort(String host) {
+    if (host.contains(":")){
+      return host.substring(0, host.lastIndexOf(":"));
+    } else {
+      return host;
+    }
+  }
+
+  @VisibleForTesting
+  public void setAuthenticationHeaderParser(AuthenticationHeaderParser parser) {
+    this.authenticationHeaderParser = parser;
   }
 
 }

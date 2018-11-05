@@ -37,7 +37,7 @@ import org.apache.hadoop.hdds.scm.container.ContainerID;
 import org.apache.hadoop.hdds.scm.container.ContainerNotFoundException;
 import org.apache.hadoop.hdds.scm.container.common.helpers.ContainerWithPipeline;
 import org.apache.hadoop.hdds.scm.container.ContainerInfo;
-import org.apache.hadoop.hdds.scm.container.common.helpers.Pipeline;
+import org.apache.hadoop.hdds.scm.pipeline.Pipeline;
 import org.apache.hadoop.hdds.scm.exceptions.SCMException;
 import org.apache.hadoop.hdds.scm.exceptions.SCMException.ResultCodes;
 import org.apache.hadoop.hdds.scm.protocol.StorageContainerLocationProtocol;
@@ -189,7 +189,6 @@ public class SCMClientProtocolServer implements
         }
       }
     }
-    String remoteUser = getRpcRemoteUsername();
     getScm().checkAdminAccess(null);
     return scm.getContainerManager()
         .getContainerWithPipeline(ContainerID.valueof(containerID));
