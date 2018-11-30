@@ -32,6 +32,11 @@ import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import cn.edu.sjtu.ist.ops.Empty;
+import cn.edu.sjtu.ist.ops.HadoopMessage;
+import cn.edu.sjtu.ist.ops.HadoopOpsGrpc;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -91,6 +96,9 @@ public class MapTask extends Task {
 
   private Progress mapPhase;
   private Progress sortPhase;
+
+  private static final ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 1234).usePlaintext().build();
+  private static final HadoopOpsGrpc.HadoopOpsBlockingStub stub = HadoopOpsGrpc.newBlockingStub(channel);
   
   {   // set phase for this task
     setPhase(TaskStatus.Phase.MAP); 
@@ -1457,6 +1465,11 @@ public class MapTask extends Task {
       }
     }
 
+    /**
+     * @throws IOException
+     * @throws ClassNotFoundException
+     * @throws InterruptedException
+     */
     public void flush() throws IOException, ClassNotFoundException,
            InterruptedException {
       LOG.info("Starting flush of map output");
@@ -1513,7 +1526,23 @@ public class MapTask extends Task {
       mergeParts();
       Path outputPath = mapOutputFile.getOutputFile();
       fileOutputByteCounter.increment(rfs.getFileStatus(outputPath).getLen());
+
+      // TODO: Connect to OPS
+      Path outputIndexPath = mapOutputFile.getOutputIndexFile();
+      TaskAttemptID mapId = getTaskID();
+
+      HadoopMessage message = HadoopMessage
+          .newBuilder()
+          .setPath(outputPath.getName())
+          .setIndexPath(outputIndexPath.getName())
+          .setTaskId(mapId.getTaskID().getId())
+          .build();
+
+      Empty _ = stub.notify(message);
+
     }
+
+
 
     public void close() { }
 

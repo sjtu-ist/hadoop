@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "cn.edu.sjtu.ist.ops";
+option java_outer_classname = "HadoopOpsProto";
+option objc_class_prefix = "OPS";
+
+package hadoopops;
+
+service HadoopOps {
+    rpc Notify (HadoopMessage) returns (Empty) {}
+}
+
+message HadoopMessage {
+    int32 taskId = 1;
+    string path = 2;
+    string indexPath = 3;
+}
+
+message Empty {}
