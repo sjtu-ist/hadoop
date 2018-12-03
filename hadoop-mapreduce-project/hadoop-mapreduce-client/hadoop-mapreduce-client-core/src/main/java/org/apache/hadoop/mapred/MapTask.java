@@ -24,6 +24,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -1533,9 +1534,12 @@ public class MapTask extends Task {
 
       HadoopMessage message = HadoopMessage
           .newBuilder()
+          .setIsMap(true)
+          .setTaskId(mapId.getTaskID().getId())
+          .setJobId(mapId.getJobID().getId())
+          .setIp(InetAddress.getLocalHost().getHostAddress())
           .setPath(outputPath.getName())
           .setIndexPath(outputIndexPath.getName())
-          .setTaskId(mapId.getTaskID().getId())
           .build();
 
       Empty _ = stub.notify(message);
