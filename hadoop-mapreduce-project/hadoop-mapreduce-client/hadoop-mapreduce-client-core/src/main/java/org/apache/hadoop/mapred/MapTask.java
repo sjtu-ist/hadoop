@@ -1535,8 +1535,8 @@ public class MapTask extends Task {
       HadoopMessage message = HadoopMessage
           .newBuilder()
           .setIsMap(true)
-          .setTaskId(mapId.getTaskID().getId())
-          .setJobId(mapId.getJobID().getId())
+          .setTaskId(Integer.toString(mapId.getTaskID().getId()))
+          .setJobId(Integer.toString(mapId.getJobID().getId()))
           .setIp(InetAddress.getLocalHost().getHostAddress())
           .setPath(outputPath.getName())
           .setIndexPath(outputIndexPath.getName())
