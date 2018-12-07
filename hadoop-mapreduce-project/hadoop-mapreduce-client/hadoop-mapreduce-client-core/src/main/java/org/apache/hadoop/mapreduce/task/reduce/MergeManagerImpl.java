@@ -263,7 +263,9 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                                              long requestedSize,
                                              int fetcher
                                              ) throws IOException {
-    if (requestedSize > maxSingleShuffleLimit) {
+    // if (requestedSize > maxSingleShuffleLimit) {
+    LOG.info("WUCHUNGHSUAN: Force to use OnDiskMapOutput.");
+    if (requestedSize > 0) {
       LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
                " is greater than maxSingleShuffleLimit (" + 
                maxSingleShuffleLimit + ")");

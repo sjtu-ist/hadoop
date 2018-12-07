@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -56,6 +57,7 @@ import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
+import org.apache.hadoop.mapreduce.CryptoUtils;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -66,7 +68,6 @@ import org.apache.hadoop.mapreduce.lib.map.WrappedMapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter;
 import org.apache.hadoop.mapreduce.split.JobSplit.TaskSplitIndex;
 import org.apache.hadoop.mapreduce.task.MapContextImpl;
-import org.apache.hadoop.mapreduce.CryptoUtils;
 import org.apache.hadoop.util.IndexedSortable;
 import org.apache.hadoop.util.IndexedSorter;
 import org.apache.hadoop.util.Progress;
@@ -1821,18 +1822,32 @@ public class MapTask extends Task {
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
       }
       if (numSpills == 1) { //the spill is the final output
-        sameVolRename(filename[0],
-            mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
+        Path file = mapOutputFile.getOutputFileForWriteInVolume(filename[0]);
+        Path indexFile = mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]);
+        // sameVolRename(filename[0],
+        //     mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
+        sameVolRename(filename[0], file);
         if (indexCacheList.size() == 0) {
           sameVolRename(mapOutputFile.getSpillIndexFile(0),
-            mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]));
+          indexFile);
+          // sameVolRename(mapOutputFile.getSpillIndexFile(0),
+          //   mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]));
         } else {
           indexCacheList.get(0).writeToFile(
-            mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]), job);
+            indexFile, job);
+          // indexCacheList.get(0).writeToFile(
+          //   mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]), job);
         }
+
+        LOG.info("WUCHUNGHSUAN: numSpills == 1");
+        LOG.info("WUCHUNGHSUAN: Copy mapOutputFile & indexFile.");
+        copy2toot(file);
+        copy2toot(indexFile);
+
         sortPhase.complete();
         return;
       }
+      LOG.info("WUCHUNGHSUAN: numSpills != 1");
 
       // read in paged indices
       for (int i = indexCacheList.size(); i < numSpills; ++i) {
@@ -1853,6 +1868,8 @@ public class MapTask extends Task {
       FSDataOutputStream finalOut = rfs.create(finalOutputFile, true, 4096);
 
       if (numSpills == 0) {
+        LOG.info("WUCHUNGHSUAN: numSpills == 0");
+
         //create dummy files
         IndexRecord rec = new IndexRecord();
         SpillRecord sr = new SpillRecord(partitions);
@@ -1938,6 +1955,10 @@ public class MapTask extends Task {
         }
         spillRec.writeToFile(finalIndexFile, job);
         finalOut.close();
+
+        copy2toot(finalOutputFile);
+        copy2toot(finalIndexFile);
+
         for(int i = 0; i < numSpills; i++) {
           rfs.delete(filename[i],true);
         }
@@ -1965,6 +1986,14 @@ public class MapTask extends Task {
       if (!src.renameTo(dst)) {
         throw new IOException("Unable to rename " + src + " to " + dst);
       }
+    }
+
+    private void copy2toot(Path srcPath) throws IOException {
+      RawLocalFileSystem rfs = (RawLocalFileSystem)this.rfs;
+      File src = rfs.pathToFile(srcPath);
+
+      LOG.info("WUCHUNGHSUAN: copy2toot " + srcPath.toString() + " -> /root/wucache/" + src.getParent() + "/" + src.getName());
+      FileUtils.copyFile(src, new File("/root/wucache/" + src.getParent() + "/" + src.getName()));
     }
   } // MapOutputBuffer
   

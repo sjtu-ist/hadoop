@@ -17,12 +17,14 @@
  */
 package org.apache.hadoop.mapreduce.task.reduce;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -91,12 +93,22 @@ class OnDiskMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
     return outPath.suffix(String.valueOf(fetcher));
   }
 
+  private void copy2toot(Path srcPath) throws IOException {
+
+    File src = new File(srcPath.toString());
+    LOG.info("WUCHUNGHSUAN: copy2toot " + srcPath.toString() + " -> /root/wucache/fetcher/" + src.getParent() + "/" + src.getName());
+    FileUtils.copyFile(src, new File("/root/wucache/fetcher/" + src.getParent() + "/" + src.getName()));
+  }
+
   @Override
   protected void doShuffle(MapHost host, IFileInputStream input,
                       long compressedLength, long decompressedLength,
                       ShuffleClientMetrics metrics,
                       Reporter reporter) throws IOException {
     // Copy data to local-disk
+
+    LOG.info("WUCHUNGHSUAN: doShuffle tmpOutputPath: " + tmpOutputPath);
+
     long bytesLeft = compressedLength;
     try {
       final int BYTES_TO_READ = 64 * 1024;
@@ -118,6 +130,7 @@ class OnDiskMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
                " bytes from map-output for " + getMapId());
 
       disk.close();
+      copy2toot(tmpOutputPath);
     } catch (IOException ioe) {
       // Close the streams
       IOUtils.cleanup(LOG, disk);
