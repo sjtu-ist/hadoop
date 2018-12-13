@@ -39,7 +39,10 @@ public abstract class MapOutput<K, V> {
   private final TaskAttemptID mapId;
   private final long size;
   private final boolean primaryMapOutput;
-  
+
+  public abstract void setOutputPath(String outputPath);
+  public abstract void setCompressedSize(long size);
+
   public MapOutput(TaskAttemptID mapId, long size, boolean primaryMapOutput) {
     this.id = ID.incrementAndGet();
     this.mapId = mapId;

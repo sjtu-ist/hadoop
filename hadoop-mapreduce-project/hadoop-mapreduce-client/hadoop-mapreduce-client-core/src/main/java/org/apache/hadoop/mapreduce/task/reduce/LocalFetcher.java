@@ -18,10 +18,9 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.*;
 
 import javax.crypto.SecretKey;
 
@@ -36,6 +35,10 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.MapOutputFile;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SpillRecord;
+import org.apache.hadoop.mapred.ops.EtcdService;
+import org.apache.hadoop.mapred.ops.HadoopPath;
+import org.apache.hadoop.mapred.ops.OpsUtils;
+import org.apache.hadoop.mapred.ops.ReduceWatcher;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.CryptoUtils;
 
@@ -43,7 +46,7 @@ import org.apache.hadoop.mapreduce.CryptoUtils;
  * LocalFetcher is used by LocalJobRunner to perform a local filesystem
  * fetch.
  */
-class LocalFetcher<K,V> extends Fetcher<K, V> {
+public class LocalFetcher<K,V> extends Fetcher<K, V> {
 
   private static final Log LOG = LogFactory.getLog(LocalFetcher.class);
 
@@ -52,44 +55,75 @@ class LocalFetcher<K,V> extends Fetcher<K, V> {
   private JobConf job;
   private Map<TaskAttemptID, MapOutputFile> localMapFiles;
 
+  // TODO: OPS
+  private final String nodeIp = InetAddress.getLocalHost().getHostAddress();
+  private String jobId;
+  private String reduceId;
+  private List<HadoopPath> paths = new ArrayList<>();
+  private final Random random = new Random();
+
   public LocalFetcher(JobConf job, TaskAttemptID reduceId,
                  ShuffleSchedulerImpl<K, V> scheduler,
                  MergeManager<K,V> merger,
                  Reporter reporter, ShuffleClientMetrics metrics,
                  ExceptionReporter exceptionReporter,
                  SecretKey shuffleKey,
-                 Map<TaskAttemptID, MapOutputFile> localMapFiles) {
+                 Map<TaskAttemptID, MapOutputFile> localMapFiles) throws UnknownHostException {
     super(job, reduceId, scheduler, merger, reporter, metrics,
         exceptionReporter, shuffleKey);
 
     this.job = job;
     this.localMapFiles = localMapFiles;
 
+    // TODO: OPS
+    this.jobId = Integer.toString(reduceId.getJobID().getId());
+    this.reduceId = Integer.toString(reduceId.getTaskID().getId());
+
     setName("localfetcher#" + id);
     setDaemon(true);
   }
 
+  public synchronized HadoopPath getPath() throws InterruptedException {
+    while (this.paths.isEmpty()) {
+      wait();
+    }
+
+    HadoopPath path = null;
+
+    Iterator<HadoopPath> iter = this.paths.iterator();
+    int numToPick = random.nextInt(this.paths.size());
+    for (int i = 0; i <= numToPick; ++i) {
+      path = iter.next();
+    }
+    this.paths.remove(path);
+    return path;
+  }
+
+  public synchronized void addPath(HadoopPath path) {
+    this.paths.add(path);
+    notifyAll();
+  }
+
   public void run() {
-    // Create a worklist of task attempts to work over.
-    Set<TaskAttemptID> maps = new HashSet<TaskAttemptID>();
-    for (TaskAttemptID map : localMapFiles.keySet()) {
-      maps.add(map);
+    EtcdService.initClient();
+    String keyReduceNum = OpsUtils.buildKeyReduceNum(this.nodeIp, this.jobId, this.reduceId);
+    ReduceWatcher reduceNumWatcher = null;
+    try {
+      reduceNumWatcher = new ReduceWatcher(this, keyReduceNum, this.jobId);
+      reduceNumWatcher.start();
+    } catch (UnknownHostException e) {
+      e.printStackTrace();
     }
 
-    while (maps.size() > 0) {
-      try {
-        // If merge is on, block
-        merger.waitForResource();
-        metrics.threadBusy();
-
-        // Copy as much as is possible.
-        doCopy(maps);
-        metrics.threadFree();
-      } catch (InterruptedException ie) {
-      } catch (Throwable t) {
-        exceptionReporter.reportException(t);
-      }
+    try {
+      HadoopPath path = getPath();
+      MapOutput<K, V> mapOutput = merger.reserve(new TaskAttemptID(), path.getDecompressedLength(), id);
+      mapOutput.setOutputPath(path.getPath());
+      mapOutput.setCompressedSize(path.getCompressedLength());
+    } catch (InterruptedException | IOException e) {
+      e.printStackTrace();
     }
+
   }
 
   /**

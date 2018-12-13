@@ -48,9 +48,20 @@ class OnDiskMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
   private static final Log LOG = LogFactory.getLog(OnDiskMapOutput.class);
   private final FileSystem fs;
   private final Path tmpOutputPath;
-  private final Path outputPath;
+  private Path outputPath;
   private final OutputStream disk; 
   private long compressedSize;
+
+  // TODO: OPS
+  @Override
+  public void setOutputPath(String outputPath) {
+    this.outputPath = new Path(outputPath);
+  }
+
+  @Override
+  public void setCompressedSize(long size) {
+    this.compressedSize = size;
+  }
 
   @Deprecated
   public OnDiskMapOutput(TaskAttemptID mapId, TaskAttemptID reduceId,

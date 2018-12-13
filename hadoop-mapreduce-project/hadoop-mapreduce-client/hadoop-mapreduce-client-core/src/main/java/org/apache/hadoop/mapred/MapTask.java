@@ -33,11 +33,6 @@ import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import cn.edu.sjtu.ist.ops.Empty;
-import cn.edu.sjtu.ist.ops.HadoopMessage;
-import cn.edu.sjtu.ist.ops.HadoopOpsGrpc;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -62,6 +57,10 @@ import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
+import org.apache.hadoop.mapred.ops.EtcdService;
+import org.apache.hadoop.mapred.ops.MapConf;
+import org.apache.hadoop.mapred.ops.OpsNode;
+import org.apache.hadoop.mapred.ops.OpsUtils;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -97,9 +96,6 @@ public class MapTask extends Task {
 
   private Progress mapPhase;
   private Progress sortPhase;
-
-  private static final ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", 1234).usePlaintext().build();
-  private static final HadoopOpsGrpc.HadoopOpsBlockingStub stub = HadoopOpsGrpc.newBlockingStub(channel);
   
   {   // set phase for this task
     setPhase(TaskStatus.Phase.MAP); 
@@ -1532,18 +1528,23 @@ public class MapTask extends Task {
       Path outputIndexPath = mapOutputFile.getOutputIndexFile();
       TaskAttemptID mapId = getTaskID();
 
-      HadoopMessage message = HadoopMessage
-          .newBuilder()
-          .setIsMap(true)
-          .setTaskId(Integer.toString(mapId.getTaskID().getId()))
-          .setJobId(Integer.toString(mapId.getJobID().getId()))
-          .setIp(InetAddress.getLocalHost().getHostAddress())
-          .setPath(outputPath.getName())
-          .setIndexPath(outputIndexPath.getName())
-          .build();
-
-      Empty _ = stub.notify(message);
-
+      EtcdService.initClient();
+      MapConf conf = new MapConf(
+          Integer.toString(mapId.getTaskID().getId()),
+          Integer.toString(mapId.getJobID().getId()),
+          new OpsNode(InetAddress.getLocalHost().getHostAddress()),
+          outputPath.getName(),
+          outputIndexPath.getName()
+      );
+      EtcdService.put(
+          OpsUtils.buildKeyMapCompleted(
+              InetAddress.getLocalHost().getHostAddress(),
+              Integer.toString(mapId.getJobID().getId()),
+              Integer.toString(mapId.getTaskID().getId()
+              )
+          ),
+          conf.toString()
+      );
     }
 
 

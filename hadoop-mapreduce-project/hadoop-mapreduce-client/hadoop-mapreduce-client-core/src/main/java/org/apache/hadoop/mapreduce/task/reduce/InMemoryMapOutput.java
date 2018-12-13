@@ -110,6 +110,16 @@ class InMemoryMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
   }
 
   @Override
+  public void setOutputPath(String outputPath) {
+
+  }
+
+  @Override
+  public void setCompressedSize(long size) {
+
+  }
+
+  @Override
   public void commit() throws IOException {
     getMerger().closeInMemoryFile(this);
   }

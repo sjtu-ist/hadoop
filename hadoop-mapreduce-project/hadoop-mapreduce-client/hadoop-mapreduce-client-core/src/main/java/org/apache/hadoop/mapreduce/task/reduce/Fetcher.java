@@ -53,7 +53,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import com.google.common.annotations.VisibleForTesting;
 
 class Fetcher<K,V> extends Thread {
-  
+
   private static final Log LOG = LogFactory.getLog(Fetcher.class);
   
   /** Number of ms before timing out a copy */
