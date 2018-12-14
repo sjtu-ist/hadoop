@@ -27,6 +27,7 @@ import java.util.List;
 
 public class ReduceWatcher extends Thread {
 
+    private volatile boolean stopped = false;
     private final String nodeIp = InetAddress.getLocalHost().getHostAddress();
     private final LocalFetcher fetcher;
     private final String key;
@@ -41,7 +42,7 @@ public class ReduceWatcher extends Thread {
     public void run() {
         Watcher watcher = EtcdService.watch(this.key);
 
-        while (true) {
+        while (!this.stopped) {
             try {
                 WatchResponse response = watcher.listen();
                 List<WatchEvent> events = response.getEvents();
@@ -50,9 +51,7 @@ public class ReduceWatcher extends Thread {
                     switch (event.getEventType()) {
                         case PUT:
                                 String reduceNum = event.getKeyValue().getValue().toStringUtf8();
-                                String keyShuffleWatcher = OpsUtils.buildKeyShuffleCompleted(this.nodeIp, this.jobId, reduceNum, "");
-                                ShuffleWatcher shuffleWatcher = new ShuffleWatcher(this.fetcher, keyShuffleWatcher);
-                                shuffleWatcher.start();
+                                this.fetcher.setReduceNum(reduceNum);
                             break;
                         default:
                             break;
@@ -62,5 +61,9 @@ public class ReduceWatcher extends Thread {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void doStopped() {
+        this.stopped = true;
     }
 }

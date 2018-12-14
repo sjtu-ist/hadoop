@@ -111,19 +111,21 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     final int numFetchers = isLocal ? 1 :
       jobConf.getInt(MRJobConfig.SHUFFLE_PARALLEL_COPIES, 5);
     Fetcher<K,V>[] fetchers = new Fetcher[numFetchers];
-    if (isLocal) {
+    // if (isLocal) {
+
+    // TODO: OPS - Force to use LocalFetcher
       fetchers[0] = new LocalFetcher<K, V>(jobConf, reduceId, scheduler,
           merger, reporter, metrics, this, reduceTask.getShuffleSecret(),
           localMapFiles);
       fetchers[0].start();
-    } else {
-      for (int i=0; i < numFetchers; ++i) {
-        fetchers[i] = new Fetcher<K,V>(jobConf, reduceId, scheduler, merger, 
-                                       reporter, metrics, this, 
-                                       reduceTask.getShuffleSecret());
-        fetchers[i].start();
-      }
-    }
+    // } else {
+    //   for (int i=0; i < numFetchers; ++i) {
+    //     fetchers[i] = new Fetcher<K,V>(jobConf, reduceId, scheduler, merger, 
+    //                                    reporter, metrics, this, 
+    //                                    reduceTask.getShuffleSecret());
+    //     fetchers[i].start();
+    //   }
+    // }
     
     // Wait for shuffle to complete successfully
     while (!scheduler.waitUntilDone(PROGRESS_FREQUENCY)) {

@@ -24,6 +24,9 @@ import java.util.*;
 
 import javax.crypto.SecretKey;
 
+import com.coreos.jetcd.data.KeyValue;
+import com.google.gson.Gson;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -38,9 +41,14 @@ import org.apache.hadoop.mapred.SpillRecord;
 import org.apache.hadoop.mapred.ops.EtcdService;
 import org.apache.hadoop.mapred.ops.HadoopPath;
 import org.apache.hadoop.mapred.ops.OpsUtils;
+import org.apache.hadoop.mapred.ops.OpsNode;
+import org.apache.hadoop.mapred.ops.ReduceConf;
+import org.apache.hadoop.mapred.ops.ShuffleWatcher;
 import org.apache.hadoop.mapred.ops.ReduceWatcher;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.CryptoUtils;
+import org.apache.hadoop.mapreduce.TaskType;
+
 
 /**
  * LocalFetcher is used by LocalJobRunner to perform a local filesystem
@@ -59,7 +67,9 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
   private final String nodeIp = InetAddress.getLocalHost().getHostAddress();
   private String jobId;
   private String reduceId;
+  private String reduceNum = null;
   private List<HadoopPath> paths = new ArrayList<>();
+  private Set<String> pathsHistory = new HashSet<>();
   private final Random random = new Random();
 
   public LocalFetcher(JobConf job, TaskAttemptID reduceId,
@@ -73,7 +83,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
         exceptionReporter, shuffleKey);
 
     this.job = job;
-    this.localMapFiles = localMapFiles;
+    this.localMapFiles = localMapFiles; // OPS: localMapFiles is null
 
     // TODO: OPS
     this.jobId = Integer.toString(reduceId.getJobID().getId());
@@ -96,30 +106,97 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       path = iter.next();
     }
     this.paths.remove(path);
+    LOG.info("OPS: getPath: " + path.toString());
     return path;
   }
 
   public synchronized void addPath(HadoopPath path) {
-    this.paths.add(path);
+    if(! this.pathsHistory.contains(path.getPath())) {
+      LOG.info("OPS: addPath: " + path.toString());
+      this.pathsHistory.add(path.getPath());
+      this.paths.add(path);
+      notifyAll();
+    } else {
+      LOG.info("OPS: addPath path exists: " + path.toString());
+    }
+  }
+
+  public synchronized String getReduceNum() throws InterruptedException {
+    while(this.reduceNum == null) {
+      wait();
+    }
+    LOG.info("OPS: getReduceNum: " + this.reduceNum);
+    return this.reduceNum;
+  }
+
+  public synchronized void setReduceNum(String num) {
+    this.reduceNum = num;
+    LOG.info("OPS: setReduceNum: " + this.reduceNum);
     notifyAll();
   }
 
   public void run() {
+    LOG.info("OPS: LocalFetcher start");
     EtcdService.initClient();
-    String keyReduceNum = OpsUtils.buildKeyReduceNum(this.nodeIp, this.jobId, this.reduceId);
-    ReduceWatcher reduceNumWatcher = null;
+    Gson gson = new Gson();
+
     try {
-      reduceNumWatcher = new ReduceWatcher(this, keyReduceNum, this.jobId);
+      // Register reduceTask
+      String keyReduceTask = OpsUtils.buildKeyReduceTask(this.nodeIp, this.jobId, this.reduceId);
+      ReduceConf reduceTask = new ReduceConf(this.reduceId, this.jobId, new OpsNode(this.nodeIp));
+      EtcdService.put(keyReduceTask, gson.toJson(reduceTask));
+      LOG.info("OPS: Register reduceTask: " + keyReduceTask);
+
+      // Watch ETCD for reduceNum
+      String keyReduceNum = OpsUtils.buildKeyReduceNum(this.nodeIp, this.jobId, this.reduceId);
+      LOG.info("OPS: Watch ReduceNum: " + keyReduceNum);
+      ReduceWatcher reduceNumWatcher = new ReduceWatcher(this, keyReduceNum, this.jobId);
       reduceNumWatcher.start();
-    } catch (UnknownHostException e) {
+      List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
+      if(getNum.size() == 1) {
+        this.setReduceNum(getNum.get(0).getValue().toStringUtf8());
+      }
+
+      // Wait for reduceNum
+      String num = this.getReduceNum();
+      reduceNumWatcher.doStopped();
+
+      // Watch ETCD for ShuffleCompleted
+      String keyShuffleWatcher = OpsUtils.buildKeyShuffleCompleted(this.nodeIp, this.jobId, num, "");
+      ShuffleWatcher shuffleWatcher = new ShuffleWatcher(this, keyShuffleWatcher);
+      shuffleWatcher.start();
+      List<KeyValue> getShuffles = EtcdService.getKVs(keyShuffleWatcher);
+      for (KeyValue shuffle : getShuffles) {
+        this.addPath(gson.fromJson(shuffle.getValue().toStringUtf8(), HadoopPath.class));
+      }
+    } catch (UnknownHostException | InterruptedException e) {
       e.printStackTrace();
     }
 
+    // TODO: Get Map task id from ETCD like reduce
+    int numMapTasks = job.getNumMapTasks();
+    LOG.info("OPS: numMapTasks == " + numMapTasks);
     try {
-      HadoopPath path = getPath();
-      MapOutput<K, V> mapOutput = merger.reserve(new TaskAttemptID(), path.getDecompressedLength(), id);
-      mapOutput.setOutputPath(path.getPath());
-      mapOutput.setCompressedSize(path.getCompressedLength());
+      while (!Thread.currentThread().isInterrupted()) {
+        HadoopPath path = getPath();
+        LOG.info("OPS: Get ShuffleCompleted: " + path.toString());
+
+        numMapTasks--;
+        TaskAttemptID mapId = new TaskAttemptID("opsIdentifier", Integer.parseInt(this.jobId), TaskType.MAP, 1215, numMapTasks);
+        LOG.info("OPS: Build mapId: " + mapId.toString());
+
+        MapOutput<K, V> mapOutput = merger.reserve(mapId, path.getDecompressedLength(), id);
+        mapOutput.setOutputPath(path.getPath());
+        mapOutput.setCompressedSize(path.getCompressedLength());
+        
+        scheduler.copySucceeded(mapId, LOCALHOST, path.getCompressedLength(), 0, 0,
+        mapOutput);
+
+        if(numMapTasks == 0) {
+          LOG.info("OPS: numMapTasks == 0, fetch complete");
+          break;
+        }
+      }
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
     }

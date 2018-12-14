@@ -55,11 +55,13 @@ class OnDiskMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
   // TODO: OPS
   @Override
   public void setOutputPath(String outputPath) {
+    LOG.info("OPS: setOutputPath: " + outputPath);
     this.outputPath = new Path(outputPath);
   }
 
   @Override
   public void setCompressedSize(long size) {
+    LOG.info("OPS: setCompressedSize: " + size);
     this.compressedSize = size;
   }
 
