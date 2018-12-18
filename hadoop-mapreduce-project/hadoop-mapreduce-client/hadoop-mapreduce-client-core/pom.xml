@@ -36,9 +36,24 @@
 
   <dependencies>
   <dependency>
+  <groupId>io.grpc</groupId>
+  <artifactId>grpc-netty</artifactId>
+</dependency>
+  <dependency>
+  <groupId>io.grpc</groupId>
+  <artifactId>grpc-netty-shaded</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.grpc</groupId>
+  <artifactId>grpc-protobuf</artifactId>
+</dependency>
+<dependency>
+  <groupId>io.grpc</groupId>
+  <artifactId>grpc-stub</artifactId>
+</dependency>
+    <dependency>
       <groupId>com.coreos</groupId>
       <artifactId>jetcd-core</artifactId>
-      <version>0.0.2</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
