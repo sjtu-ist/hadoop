@@ -152,7 +152,7 @@ class OnDiskMapOutput<K, V> extends IFileWrappedMapOutput<K, V> {
 
   @Override
   public void commit() throws IOException {
-    fs.rename(tmpOutputPath, outputPath);
+    // fs.rename(tmpOutputPath, outputPath);
     CompressAwarePath compressAwarePath = new CompressAwarePath(outputPath,
         getSize(), this.compressedSize);
     getMerger().closeOnDiskFile(compressAwarePath);
