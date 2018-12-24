@@ -131,5 +131,8 @@ public interface MRConfig {
   String MASTER_WEBAPP_UI_ACTIONS_ENABLED =
       "mapreduce.webapp.ui-actions.enabled";
   boolean DEFAULT_MASTER_WEBAPP_UI_ACTIONS_ENABLED = true;
+
+  // OPS
+  public static final String MAPREDUCE_OPS_MASTER = "mapreduce.ops.master";
 }
   

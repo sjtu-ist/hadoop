@@ -29,6 +29,8 @@ import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
 import com.coreos.jetcd.options.WatchOption;
 
+import org.apache.hadoop.mapreduce.MRConfig;
+
 public class EtcdService {
     private static Client client = null;
     private static long leaseId = 0L;
@@ -37,7 +39,7 @@ public class EtcdService {
      * 
      */
     public static synchronized void initClient() {
-        client = Client.builder().endpoints("http://localhost:2379").build();
+        client = Client.builder().endpoints(MRConfig.MAPREDUCE_OPS_MASTER).build();
     }
 
     /**
@@ -58,8 +60,7 @@ public class EtcdService {
     public static List<KeyValue> getKVs(String key) {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
-            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream().skip(1)
-                    .collect(Collectors.toList());
+            return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs();
         } catch (Exception e) {
             e.printStackTrace();
         }
