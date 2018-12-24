@@ -215,7 +215,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       updateStatus(individualProgress);
       reduceShuffleBytes.increment(bytes);
       lastProgressTime = Time.monotonicNow();
-      LOG.debug("map " + mapId + " done " + status.getStateString());
+      LOG.info("map " + mapId + " done " + status.getStateString());
     } else {
       LOG.warn("Aborting already-finished MapOutput for " + mapId);
       output.abort();

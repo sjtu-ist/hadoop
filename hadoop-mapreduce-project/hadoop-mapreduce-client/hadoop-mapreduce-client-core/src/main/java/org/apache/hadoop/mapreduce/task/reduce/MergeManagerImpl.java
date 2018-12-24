@@ -263,10 +263,12 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
                                              long requestedSize,
                                              int fetcher
                                              ) throws IOException {
-    if (requestedSize > maxSingleShuffleLimit) {
-      LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
-               " is greater than maxSingleShuffleLimit (" + 
-               maxSingleShuffleLimit + ")");
+    // if (requestedSize > maxSingleShuffleLimit) {
+    if (true) {
+      // LOG.info(mapId + ": Shuffling to disk since " + requestedSize + 
+      //          " is greater than maxSingleShuffleLimit (" + 
+      //          maxSingleShuffleLimit + ")");
+      LOG.info("OPS: Force to use OnDiskMapOutput, mapId: " + mapId);
       return new OnDiskMapOutput<K,V>(mapId, this, requestedSize, jobConf,
          fetcher, true, FileSystem.getLocal(jobConf).getRaw(),
          mapOutputFile.getInputFileForWrite(mapId.getTaskID(), requestedSize));
@@ -737,6 +739,7 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         Writer<K, V> writer = new Writer<K, V>(job, out, keyClass, valueClass,
             codec, null, true);
         try {
+          LOG.info("OPS: error here?");
           Merger.writeFile(rIter, writer, reporter, job);
           writer.close();
           onDiskMapOutputs.add(new CompressAwarePath(outputPath,

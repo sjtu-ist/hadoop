@@ -16,6 +16,10 @@
 
 package org.apache.hadoop.mapred.ops;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
 import com.coreos.jetcd.Client;
 import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.data.ByteSequence;
@@ -25,11 +29,6 @@ import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
 import com.coreos.jetcd.options.WatchOption;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-
 public class EtcdService {
     private static Client client = null;
     private static long leaseId = 0L;
@@ -38,9 +37,7 @@ public class EtcdService {
      * 
      */
     public static synchronized void initClient() {
-        if (null == client) {
-            client = Client.builder().endpoints("http://202.120.40.4:12379").build();
-        }
+        client = Client.builder().endpoints("http://localhost:2379").build();
     }
 
     /**
@@ -62,6 +59,17 @@ public class EtcdService {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
             return client.getKVClient().get(ByteSequence.fromString(key), getOption).get().getKvs().stream().skip(1)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static List<KeyValue> getPrefixKVs(String prefix) {
+        GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(prefix)).build();
+        try {
+            return client.getKVClient().get(ByteSequence.fromString(prefix), getOption).get().getKvs().stream()
                     .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();

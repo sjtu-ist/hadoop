@@ -342,6 +342,11 @@ public class MapTask extends Task {
       return;
     }
 
+    EtcdService.initClient();
+    // EtcdService.put("ops/put_test", "putputtest");
+    // String ret = EtcdService.get("ops/get_test");
+    // LOG.info("OPS: get_test: " + ret);
+    
     if (useNewApi) {
       runNewMapper(job, splitMetaInfo, umbilical, reporter);
     } else {
@@ -1528,23 +1533,22 @@ public class MapTask extends Task {
       Path outputIndexPath = mapOutputFile.getOutputIndexFile();
       TaskAttemptID mapId = getTaskID();
 
-      EtcdService.initClient();
+      LOG.info("OPS: Map done, outputIndexPath: " + outputIndexPath.toString());
       MapConf conf = new MapConf(
           Integer.toString(mapId.getTaskID().getId()),
           Integer.toString(mapId.getJobID().getId()),
           new OpsNode(InetAddress.getLocalHost().getHostAddress()),
-          outputPath.getName(),
-          outputIndexPath.getName()
+          outputPath.toString(),
+          outputIndexPath.toString()
       );
-      EtcdService.put(
-          OpsUtils.buildKeyMapCompleted(
-              InetAddress.getLocalHost().getHostAddress(),
-              Integer.toString(mapId.getJobID().getId()),
-              Integer.toString(mapId.getTaskID().getId()
-              )
-          ),
-          conf.toString()
+      String key = OpsUtils.buildKeyMapCompleted(
+          InetAddress.getLocalHost().getHostAddress(),
+          Integer.toString(mapId.getJobID().getId()),
+          Integer.toString(mapId.getTaskID().getId()
+          )
       );
+      EtcdService.put(key, conf.toString()); 
+      LOG.info("OPS: Put ETCD, key: " + key + " mapConf: " + conf.toString());
     }
 
 

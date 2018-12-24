@@ -164,8 +164,10 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       // Watch ETCD for ShuffleCompleted
       String keyShuffleWatcher = OpsUtils.buildKeyShuffleCompleted(this.nodeIp, this.jobId, num, "");
       ShuffleWatcher shuffleWatcher = new ShuffleWatcher(this, keyShuffleWatcher);
+      LOG.info("OPS: Watch shuffle: " + keyShuffleWatcher);
       shuffleWatcher.start();
-      List<KeyValue> getShuffles = EtcdService.getKVs(keyShuffleWatcher);
+      List<KeyValue> getShuffles = EtcdService.getPrefixKVs(keyShuffleWatcher);
+      LOG.info("OPS: Get shuffle size: " + getShuffles.size());
       for (KeyValue shuffle : getShuffles) {
         this.addPath(gson.fromJson(shuffle.getValue().toStringUtf8(), HadoopPath.class));
       }
@@ -182,9 +184,10 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
         LOG.info("OPS: Get ShuffleCompleted: " + path.toString());
 
         numMapTasks--;
-        TaskAttemptID mapId = new TaskAttemptID("opsIdentifier", Integer.parseInt(this.jobId), TaskType.MAP, 1215, numMapTasks);
+        TaskAttemptID mapId = new TaskAttemptID("opsIdentifier", Integer.parseInt(this.jobId), TaskType.MAP, numMapTasks, numMapTasks);
         LOG.info("OPS: Build mapId: " + mapId.toString());
 
+        // Forse merger to use onDiskMapOutput
         MapOutput<K, V> mapOutput = merger.reserve(mapId, path.getDecompressedLength(), id);
         mapOutput.setOutputPath(path.getPath());
         mapOutput.setCompressedSize(path.getCompressedLength());
@@ -192,6 +195,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
         scheduler.copySucceeded(mapId, LOCALHOST, path.getCompressedLength(), 0, 0,
         mapOutput);
 
+        LOG.info("OPS: numMapTasks == " + numMapTasks);
         if(numMapTasks == 0) {
           LOG.info("OPS: numMapTasks == 0, fetch complete");
           break;
