@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,11 +36,19 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.coreos.jetcd.data.KeyValue;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.ops.EtcdService;
+import org.apache.hadoop.mapred.ops.JobConf;
+import org.apache.hadoop.mapred.ops.OpsNode;
+import org.apache.hadoop.mapred.ops.OpsUtils;
 import org.apache.hadoop.mapreduce.JobCounter;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.jobhistory.JobHistoryEvent;
@@ -85,8 +94,6 @@ import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.RackResolver;
 import org.apache.hadoop.yarn.util.resource.Resources;
-
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Allocates the container from the ResourceManager scheduler.
@@ -261,6 +268,25 @@ public class RMContainerAllocator extends RMContainerRequestor
     };
     this.eventHandlingThread.start();
     super.serviceStart();
+
+
+    // OPS: Register job to etcd
+    Gson gson = new Gson();
+    EtcdService.initClient();
+    List<KeyValue> workersKV = EtcdService.getKVs(OpsUtils.ETCD_NODES_PATH + "/worker");
+    List<OpsNode> workers = new ArrayList<OpsNode>();
+    for (KeyValue kv : workersKV) {
+      workers.add(gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class));
+    }
+    LOG.info("OPS: Get OPS workers: " + Arrays.toString(workers.toArray()));
+    JobConf job = new JobConf(
+        Integer.toString(getJob().getID().getId()), 
+        getJob().getTotalMaps(), 
+        getJob().getTotalReduces(), 
+        workers
+      );
+    EtcdService.put(OpsUtils.buildKeyJob(job.getJobId()), gson.toJson(job));
+    LOG.info("OPS: Register job: " + job.toString());
   }
 
   @Override

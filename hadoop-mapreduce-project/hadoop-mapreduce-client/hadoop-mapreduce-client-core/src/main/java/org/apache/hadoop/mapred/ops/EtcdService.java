@@ -39,7 +39,8 @@ public class EtcdService {
      * 
      */
     public static synchronized void initClient() {
-        client = Client.builder().endpoints(MRConfig.MAPREDUCE_OPS_MASTER).build();
+        // client = Client.builder().endpoints(MRConfig.MAPREDUCE_OPS_MASTER).build();
+        client = Client.builder().endpoints("http://192.168.2.11:2379").build();
     }
 
     /**
