@@ -1930,6 +1930,7 @@ public class MapTask extends Task {
           rec.rawLength = writer.getRawLength() + CryptoUtils.cryptoPadding(job);
           rec.partLength = writer.getCompressedLength() + CryptoUtils.cryptoPadding(job);
           spillRec.putIndex(rec, parts);
+          LOG.info("OPS: [" + parts + ", " + rec.startOffset + ", " + rec.rawLength + "]");
         }
         spillRec.writeToFile(finalIndexFile, job);
         finalOut.close();
