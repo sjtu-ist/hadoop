@@ -19,10 +19,8 @@
 package org.apache.hadoop.examples;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -85,6 +83,8 @@ public class RandomTextWriter extends Configured implements Tool {
   public static final String MIN_VALUE = "mapreduce.randomtextwriter.minwordsvalue";
   public static final String MIN_KEY = "mapreduce.randomtextwriter.minwordskey";
   public static final String MAX_KEY = "mapreduce.randomtextwriter.maxwordskey";
+
+  public static final String ZIPF_ALPHA = "mapreduce.randomtextwriter.zipfalpha";
   
   static int printUsage() {
     System.out.println("randomtextwriter " +
@@ -106,6 +106,7 @@ public class RandomTextWriter extends Configured implements Tool {
     private int wordsInKeyRange;
     private int minWordsInValue;
     private int wordsInValueRange;
+    private double zipfAlpha;
     private Random random = new Random();
     
     /**
@@ -119,6 +120,8 @@ public class RandomTextWriter extends Configured implements Tool {
       wordsInKeyRange = (conf.getInt(MAX_KEY, 10) - minWordsInKey);
       minWordsInValue = conf.getInt(MIN_VALUE, 10);
       wordsInValueRange = (conf.getInt(MAX_VALUE, 100) - minWordsInValue);
+      zipfAlpha = conf.getDouble(ZIPF_ALPHA, 1);
+      System.out.println("OPS: RandomTextWriter: ZIPF_ALPHA = " + zipfAlpha);
     }
     
     /**
@@ -133,8 +136,8 @@ public class RandomTextWriter extends Configured implements Tool {
           (wordsInKeyRange != 0 ? random.nextInt(wordsInKeyRange) : 0);
         int noWordsValue = minWordsInValue + 
           (wordsInValueRange != 0 ? random.nextInt(wordsInValueRange) : 0);
-        Text keyWords = generateSentence(noWordsKey);
-        Text valueWords = generateSentence(noWordsValue);
+        Text keyWords = generateSentence(noWordsKey, zipfAlpha);
+        Text valueWords = generateSentence(noWordsValue, zipfAlpha);
         
         // Write the sentence 
         context.write(keyWords, valueWords);
@@ -153,12 +156,45 @@ public class RandomTextWriter extends Configured implements Tool {
       context.setStatus("done with " + itemCount + " records.");
     }
     
-    private Text generateSentence(int noWords) {
+    private Text generateSentence(int noWords, double alpha) {
+//      StringBuffer sentence = new StringBuffer();
+//      String space = " ";
+//      for (int i=0; i < noWords; ++i) {
+//        sentence.append(words[random.nextInt(words.length)]);
+//        sentence.append(space);
+//      }
+//      return new Text(sentence.toString());
+      List<Double> ps = new ArrayList<>();
+      double sum = 0;
+      for (int i = 0; i < 1000; i++) {
+        double p = 1.0 / Math.pow(i+1, alpha);
+        ps.add(p);
+        sum += p;
+      }
+      final double finalSum = sum;
+
+      ps = ps.stream().map(i -> i / finalSum).collect(Collectors.toList());
+      List<Integer> numPerWord = ps.stream().map(x -> (int) (x * noWords)).collect(Collectors.toList());
+
       StringBuffer sentence = new StringBuffer();
       String space = " ";
-      for (int i=0; i < noWords; ++i) {
-        sentence.append(words[random.nextInt(words.length)]);
+      List<Integer> indexList = new ArrayList<>();
+      for (int i = 0; i < numPerWord.size(); i++) {
+        for (int j = 0; j < numPerWord.get(i); j++) {
+          indexList.add(i);
+        }
+      }
+      Collections.shuffle(indexList);
+      int curNum = 0;
+      for (int i = 0; i < indexList.size(); i++) {
+        sentence.append(words[indexList.get(i)]);
         sentence.append(space);
+        curNum++;
+      }
+      while (curNum < noWords) {
+        sentence.append(words[0]);
+        sentence.append(space);
+        curNum++;
       }
       return new Text(sentence.toString());
     }
