@@ -482,6 +482,9 @@ class Fetcher<K,V> extends Thread {
         compressedLength = header.compressedLength;
         decompressedLength = header.uncompressedLength;
         forReduce = header.forReduce;
+
+        LOG.info("OPS: reduce input [" + mapId.getId() + ", " + decompressedLength + "]");
+
       } catch (IllegalArgumentException e) {
         badIdErrs.increment(1);
         LOG.warn("Invalid map id ", e);

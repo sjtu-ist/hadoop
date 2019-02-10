@@ -307,7 +307,7 @@ public class MapTask extends Task {
     this.umbilical = umbilical;
 
     LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "start");
-    
+
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
       // phase will govern the entire attempt's progress.
@@ -1937,7 +1937,9 @@ public class MapTask extends Task {
         }
         spillRec.writeToFile(finalIndexFile, job);
         finalOut.close();
+        // rfs.copyFromLocalFile(finalOutputFile, new Path("/root/wuchunghsuan/" + getTaskID().getId() + "-" + finalOutputFile.getName()));
         for(int i = 0; i < numSpills; i++) {
+          System.out.println("filename["+ i + "] :" + rfs.getFileStatus(filename[i]).getLen());
           rfs.delete(filename[i],true);
         }
       }
