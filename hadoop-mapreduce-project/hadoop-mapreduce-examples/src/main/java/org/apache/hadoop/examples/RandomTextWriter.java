@@ -108,6 +108,9 @@ public class RandomTextWriter extends Configured implements Tool {
     private int wordsInValueRange;
     private double zipfAlpha;
     private Random random = new Random();
+    private List<Integer> indexList;
+    private int curPos;
+    private static final int indexListSize = 1*1024*1024;
     
     /**
      * Save the configuration value that we need to write the data.
@@ -130,14 +133,17 @@ public class RandomTextWriter extends Configured implements Tool {
     public void map(Text key, Text value,
                     Context context) throws IOException,InterruptedException {
       int itemCount = 0;
+
+      calculateIndexList();
+
       while (numBytesToWrite > 0) {
         // Generate the key/value 
         int noWordsKey = minWordsInKey + 
           (wordsInKeyRange != 0 ? random.nextInt(wordsInKeyRange) : 0);
         int noWordsValue = minWordsInValue + 
           (wordsInValueRange != 0 ? random.nextInt(wordsInValueRange) : 0);
-        Text keyWords = generateSentence(noWordsKey, zipfAlpha);
-        Text valueWords = generateSentence(noWordsValue, zipfAlpha);
+        Text keyWords = generateSentence(noWordsKey);
+        Text valueWords = generateSentence(noWordsValue);
         
         // Write the sentence 
         context.write(keyWords, valueWords);
@@ -156,50 +162,46 @@ public class RandomTextWriter extends Configured implements Tool {
       context.setStatus("done with " + itemCount + " records.");
     }
     
-    private Text generateSentence(int noWords, double alpha) {
-//      StringBuffer sentence = new StringBuffer();
-//      String space = " ";
-//      for (int i=0; i < noWords; ++i) {
-//        sentence.append(words[random.nextInt(words.length)]);
-//        sentence.append(space);
-//      }
-//      return new Text(sentence.toString());
+    private Text generateSentence(int noWords) {
+      StringBuffer sentence = new StringBuffer();
+      String space = " ";
+      for (int i=0; i < noWords; ++i) {
+        sentence.append(words[indexList.get(curPos)]);
+        // sentence.append(words[0]);
+        sentence.append(space);
+        curPos = (curPos + 1) % indexListSize;
+      }
+      return new Text(sentence.toString());
+    }
+
+    private void calculateIndexList() {
       List<Double> ps = new ArrayList<>();
       double sum = 0;
       for (int i = 0; i < 1000; i++) {
-        double p = 1.0 / Math.pow(i+1, alpha);
+        double p = 1.0 / Math.pow(i+1, zipfAlpha);
         ps.add(p);
         sum += p;
       }
       final double finalSum = sum;
 
       ps = ps.stream().map(i -> i / finalSum).collect(Collectors.toList());
-      List<Integer> numPerWord = ps.stream().map(x -> (int) (x * noWords)).collect(Collectors.toList());
+      List<Integer> numPerWord = ps.stream().map(x -> (int) (x * indexListSize)).collect(Collectors.toList());
 
-      StringBuffer sentence = new StringBuffer();
-      String space = " ";
-      List<Integer> indexList = new ArrayList<>();
+      indexList = new ArrayList<>();
       for (int i = 0; i < numPerWord.size(); i++) {
         for (int j = 0; j < numPerWord.get(i); j++) {
           indexList.add(i);
         }
       }
+      for (int i = indexList.size(); i < indexListSize; i++) {
+        indexList.add(0);
+      }
       Collections.shuffle(indexList);
-      int curNum = 0;
-      for (int i = 0; i < indexList.size(); i++) {
-        sentence.append(words[indexList.get(i)]);
-        sentence.append(space);
-        curNum++;
-      }
-      while (curNum < noWords) {
-        sentence.append(words[0]);
-        sentence.append(space);
-        curNum++;
-      }
-      return new Text(sentence.toString());
+
+      curPos = 0;
     }
   }
-  
+
   /**
    * This is the main routine for launching a distributed random write job.
    * It runs 10 maps/node and each node writes 1 gig of data to a DFS file.
