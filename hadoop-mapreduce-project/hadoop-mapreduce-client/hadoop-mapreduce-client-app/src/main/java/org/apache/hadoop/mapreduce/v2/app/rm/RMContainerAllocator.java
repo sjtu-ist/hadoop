@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -145,7 +146,9 @@ public class RMContainerAllocator extends RMContainerRequestor
   private final AssignedRequests assignedRequests;
   
   //holds scheduled requests to be fulfilled by RM
-  private final ScheduledRequests scheduledRequests = new ScheduledRequests();
+  // For OPS, initialize in the constructor function
+  private final ScheduledRequests scheduledRequests;
+  // private final ScheduledRequests scheduledRequests = new ScheduledRequests();
   
   private int containersAllocated = 0;
   private int containersReleased = 0;
@@ -184,11 +187,18 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   private String reduceNodeLabelExpression;
 
+  /** For OPS **/
+  private OPSContainerFilter OpsFilter;
+
   public RMContainerAllocator(ClientService clientService, AppContext context) {
     super(clientService, context);
     this.stopped = new AtomicBoolean(false);
     this.clock = context.getClock();
     this.assignedRequests = createAssignedRequests();
+
+    // For OPS
+    this.OpsFilter = new OPSContainerFilter(getJob());
+    this.scheduledRequests = new ScheduledRequests(this.OpsFilter);
   }
 
   protected AssignedRequests createAssignedRequests() {
@@ -360,6 +370,12 @@ public class RMContainerAllocator extends RMContainerRequestor
     recalculateReduceSchedule = true;
     if (event.getType() == ContainerAllocator.EventType.CONTAINER_REQ) {
       ContainerRequestEvent reqEvent = (ContainerRequestEvent) event;
+
+      System.out.println("reqEvent: TaskId -> " + reqEvent.getAttemptID().getTaskId() 
+          + ", Hosts -> " + Arrays.toString(reqEvent.getHosts()) 
+          + ", Racks -> " + Arrays.toString(reqEvent.getRacks())
+          + ", Capability ->" + reqEvent.getCapability());
+
       JobId jobId = getJob().getID();
       Resource supportedMaxContainerCapability = getMaxContainerCapability();
       if (reqEvent.getAttemptID().getTaskId().getTaskType().equals(TaskType.MAP)) {
@@ -982,6 +998,15 @@ public class RMContainerAllocator extends RMContainerRequestor
     @VisibleForTesting
     final LinkedHashMap<TaskAttemptId, ContainerRequest> reduces =
       new LinkedHashMap<TaskAttemptId, ContainerRequest>();
+
+    // For OPS
+    private final OPSContainerFilter OpsFilter;
+
+    public ScheduledRequests(OPSContainerFilter filter) {
+      this.OpsFilter = filter;
+      this.OpsFilter.addMapLimit("ist-slave1", 4);
+      this.OpsFilter.addMapLimit("ist-slave2", 4);
+    }
     
     boolean remove(TaskAttemptId tId) {
       ContainerRequest req = null;
@@ -1154,8 +1179,13 @@ public class RMContainerAllocator extends RMContainerRequestor
         }
       }
 
+      String str = "";
+      for (Container c : allocatedContainers) {
+        str += "[" + c.getNodeId().getHost() + ", " + c.getId().getContainerId() + "], \n";
+      }
+      System.out.println("allocatedContainers: " + str);
       assignContainers(allocatedContainers);
-       
+      
       // release container if we could not assign it 
       it = allocatedContainers.iterator();
       while (it.hasNext()) {
@@ -1168,6 +1198,15 @@ public class RMContainerAllocator extends RMContainerRequestor
     @SuppressWarnings("unchecked")
     private void containerAssigned(Container allocated, 
                                     ContainerRequest assigned) {
+
+      // For OPS
+      Priority priority = allocated.getPriority();
+      if (PRIORITY_REDUCE.equals(priority)) {
+        this.OpsFilter.assignReduce(allocated.getNodeId().getHost(), assigned.attemptID);
+      } else if(PRIORITY_MAP.equals(priority)) {
+        this.OpsFilter.assignMap(allocated.getNodeId().getHost(), assigned.attemptID); 
+      }
+      
       // Update resource requests
       decContainerReq(assigned);
 
@@ -1211,6 +1250,12 @@ public class RMContainerAllocator extends RMContainerRequestor
       Iterator<Container> it = allocatedContainers.iterator();
       while (it.hasNext()) {
         Container allocated = it.next();
+
+        // OPS filter here
+        if(!this.OpsFilter.filterReduce(allocated.getNodeId().getHost())) {
+          continue;
+        }
+
         ContainerRequest assigned = assignWithoutLocality(allocated);
         if (assigned != null) {
           containerAssigned(allocated, assigned);
@@ -1296,6 +1341,12 @@ public class RMContainerAllocator extends RMContainerRequestor
       Iterator<Container> it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0 && canAssignMaps()){
         Container allocated = it.next();        
+
+        // OPS filter here
+        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+          continue;
+        }
+
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         // "if (maps.containsKey(tId))" below should be almost always true.
@@ -1328,6 +1379,12 @@ public class RMContainerAllocator extends RMContainerRequestor
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0 && canAssignMaps()){
         Container allocated = it.next();
+
+        // OPS filter here
+        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+          continue;
+        }
+
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         // "if (maps.containsKey(tId))" below should be almost always true.
@@ -1358,6 +1415,12 @@ public class RMContainerAllocator extends RMContainerRequestor
       it = allocatedContainers.iterator();
       while(it.hasNext() && maps.size() > 0 && canAssignMaps()){
         Container allocated = it.next();
+
+        // OPS filter here
+        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+          continue;
+        }
+
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
         TaskAttemptId tId = maps.keySet().iterator().next();

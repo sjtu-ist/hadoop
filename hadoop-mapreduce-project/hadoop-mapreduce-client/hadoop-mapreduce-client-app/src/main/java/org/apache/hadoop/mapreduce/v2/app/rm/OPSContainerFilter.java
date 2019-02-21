@@ -1,0 +1,116 @@
+/**
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements.  See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership.  The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License.  You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+package org.apache.hadoop.mapreduce.v2.app.rm;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.LinkedList;
+
+import org.apache.hadoop.mapreduce.v2.app.job.Job;
+import org.apache.hadoop.mapreduce.v2.api.records.JobId;
+import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
+import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
+
+public class OPSContainerFilter {
+
+    private final Job job;
+
+    /** Maps from a host to the limit of map slots on this node **/
+    private final Map<String, Integer> mapLimit = new HashMap<String, Integer>();
+    /** Maps from a host to the limit of reduce slots on this node **/
+    private final Map<String, Integer> reduceLimit = new HashMap<String, Integer>();
+
+    /** Maps from a host to the assigned map task id **/
+    private final Map<String, LinkedList<TaskAttemptId>> mapHostMapping
+            = new HashMap<String, LinkedList<TaskAttemptId>>();
+    /** Maps from a host to the assigned reduce task id **/        
+    private final Map<String, LinkedList<TaskAttemptId>> reduceHostMapping
+            = new HashMap<String, LinkedList<TaskAttemptId>>();
+
+    public OPSContainerFilter(Job job) {
+        this.job = job;
+    }
+
+    public void addMapLimit(String hostname, int num) {
+        this.mapLimit.put(hostname, num);
+        System.out.println("addMapLimit: " + hostname + ", " + num);
+    }
+
+    public void addReduceLimit(String hostname, int num) {
+        this.reduceLimit.put(hostname, num);
+        System.out.println("addReduceLimit: " + hostname + ", " + num);
+    }
+
+    public boolean filterMap(String hostname) {
+        if(!this.mapLimit.containsKey(hostname)) {
+            System.out.println("filterMap: Hostname " + hostname + " no limit.");
+            return true;
+        }
+        if(!this.mapHostMapping.containsKey(hostname)) {
+            this.mapHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        int limit = this.mapLimit.get(hostname);
+        int mapNum = this.mapHostMapping.get(hostname).size();
+        if(mapNum < limit) {
+            System.out.println("filterMap: Hostname: " + hostname 
+                + " mapNum: " + mapNum + " limit: " + limit);
+            return true;
+        }
+        System.out.println("filterMap: Hostname " + hostname 
+                + " meets limit. mapNum: " + mapNum + " limit: " + limit);
+        return false;
+    }
+
+    public boolean filterReduce(String hostname) {
+        if(!this.reduceLimit.containsKey(hostname)) {
+            System.out.println("filterReduce: Hostname " + hostname + " no limit.");
+            return true;
+        }
+        if(!this.reduceHostMapping.containsKey(hostname)) {
+            this.reduceHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        int limit = this.reduceLimit.get(hostname);
+        int reduceNum = this.reduceHostMapping.get(hostname).size();
+        if(reduceNum < limit) {
+            System.out.println("filterReduce: Hostname: " + hostname 
+                + " reduceNum: " + reduceNum + " limit: " + limit);
+            return true;
+        }
+        System.out.println("filterReduce: Hostname " + hostname 
+                + " meets limit. reduceNum: " + reduceNum + " limit: " + limit);
+        return false;
+    }
+
+    public void assignMap(String hostname, TaskAttemptId id) {
+        if(!this.mapHostMapping.containsKey(hostname)) {
+            this.mapHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        this.mapHostMapping.get(hostname).add(id);
+        System.out.println("assignMap: [" + hostname + ", " + id + "]");
+    }
+
+    public void assignReduce(String hostname, TaskAttemptId id) {
+        if(!this.reduceHostMapping.containsKey(hostname)) {
+            this.reduceHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        this.reduceHostMapping.get(hostname).add(id);
+        System.out.println("assignReduce: [" + hostname + ", " + id + "]");
+    }
+}
