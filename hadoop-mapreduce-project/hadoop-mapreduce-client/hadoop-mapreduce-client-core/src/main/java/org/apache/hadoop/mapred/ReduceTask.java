@@ -320,6 +320,7 @@ public class ReduceTask extends Task {
     throws IOException, InterruptedException, ClassNotFoundException {
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
+    
     if (isMapOrReduce()) {
       copyPhase = getProgress().addPhase("copy");
       sortPhase  = getProgress().addPhase("sort");
@@ -373,17 +374,23 @@ public class ReduceTask extends Task {
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
 
+    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "start");
+    
     rIter = shuffleConsumerPlugin.run();
 
     // free up the data structures
     mapOutputFilesOnDisk.clear();
     
+    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "stop");
+
     sortPhase.complete();                         // sort is complete
     setPhase(TaskStatus.Phase.REDUCE); 
     statusUpdate(umbilical);
     Class keyClass = job.getMapOutputKeyClass();
     Class valueClass = job.getMapOutputValueClass();
     RawComparator comparator = job.getOutputValueGroupingComparator();
+
+    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "start");
 
     if (useNewApi) {
       runNewReducer(job, umbilical, reporter, rIter, comparator, 
@@ -394,6 +401,7 @@ public class ReduceTask extends Task {
     }
 
     shuffleConsumerPlugin.close();
+    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
     done(umbilical, reporter);
   }
 
