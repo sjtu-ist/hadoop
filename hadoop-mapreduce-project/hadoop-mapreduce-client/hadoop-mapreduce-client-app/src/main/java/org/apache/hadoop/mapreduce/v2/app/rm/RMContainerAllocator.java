@@ -188,7 +188,7 @@ public class RMContainerAllocator extends RMContainerRequestor
   private String reduceNodeLabelExpression;
 
   /** For OPS **/
-  private OPSContainerFilter OpsFilter;
+  private OPSContainerFilter opsFilter;
 
   public RMContainerAllocator(ClientService clientService, AppContext context) {
     super(clientService, context);
@@ -197,8 +197,8 @@ public class RMContainerAllocator extends RMContainerRequestor
     this.assignedRequests = createAssignedRequests();
 
     // For OPS
-    this.OpsFilter = new OPSContainerFilter(getJob());
-    this.scheduledRequests = new ScheduledRequests(this.OpsFilter);
+    this.opsFilter = new OPSContainerFilter(getJob());
+    this.scheduledRequests = new ScheduledRequests(this.opsFilter);
   }
 
   protected AssignedRequests createAssignedRequests() {
@@ -404,6 +404,14 @@ public class RMContainerAllocator extends RMContainerRequestor
         reqEvent.getCapability().setMemorySize(mapResourceRequest.getMemorySize());
         reqEvent.getCapability().setVirtualCores(
           mapResourceRequest.getVirtualCores());
+
+        // For OPS, modify request host.
+        String host = this.opsFilter.requestMapHost();
+        if(host != "") {
+          String[] hosts = {host};
+          reqEvent.setHosts(hosts);
+        }
+
         scheduledRequests.addMap(reqEvent);//maps are immediately scheduled
       } else {
         if (reduceResourceRequest.equals(Resources.none())) {
@@ -437,6 +445,14 @@ public class RMContainerAllocator extends RMContainerRequestor
           pendingReduces.addFirst(new ContainerRequest(reqEvent,
               PRIORITY_REDUCE, reduceNodeLabelExpression));
         } else {
+
+          // For OPS, modify request host.
+          String host = this.opsFilter.requestReduceHost();
+          if(host != "") {
+            String[] hosts = {host};
+            reqEvent.setHosts(hosts);
+          }
+
           pendingReduces.add(new ContainerRequest(reqEvent, PRIORITY_REDUCE,
               reduceNodeLabelExpression));
           //reduces are added to pending and are slowly ramped up
@@ -1000,12 +1016,12 @@ public class RMContainerAllocator extends RMContainerRequestor
       new LinkedHashMap<TaskAttemptId, ContainerRequest>();
 
     // For OPS
-    private final OPSContainerFilter OpsFilter;
+    private final OPSContainerFilter opsFilter;
 
     public ScheduledRequests(OPSContainerFilter filter) {
-      this.OpsFilter = filter;
-      this.OpsFilter.addMapLimit("ist-slave1", 4);
-      this.OpsFilter.addMapLimit("ist-slave2", 4);
+      this.opsFilter = filter;
+      this.opsFilter.addMapLimit("ist-slave1", 2);
+      this.opsFilter.addMapLimit("ist-slave2", 6);
     }
     
     boolean remove(TaskAttemptId tId) {
@@ -1202,9 +1218,9 @@ public class RMContainerAllocator extends RMContainerRequestor
       // For OPS
       Priority priority = allocated.getPriority();
       if (PRIORITY_REDUCE.equals(priority)) {
-        this.OpsFilter.assignReduce(allocated.getNodeId().getHost(), assigned.attemptID);
+        this.opsFilter.assignReduce(allocated.getNodeId().getHost(), assigned.attemptID);
       } else if(PRIORITY_MAP.equals(priority)) {
-        this.OpsFilter.assignMap(allocated.getNodeId().getHost(), assigned.attemptID); 
+        this.opsFilter.assignMap(allocated.getNodeId().getHost(), assigned.attemptID); 
       }
       
       // Update resource requests
@@ -1252,7 +1268,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.OpsFilter.filterReduce(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
           continue;
         }
 
@@ -1343,7 +1359,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();        
 
         // OPS filter here
-        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
           continue;
         }
 
@@ -1381,7 +1397,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
           continue;
         }
 
@@ -1417,7 +1433,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.OpsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
           continue;
         }
 

@@ -20,17 +20,19 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
 import java.util.LinkedList;
 
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
-import org.apache.hadoop.mapreduce.v2.api.records.JobId;
 import org.apache.hadoop.mapreduce.v2.api.records.TaskAttemptId;
-import org.apache.hadoop.mapreduce.v2.api.records.TaskType;
 
 public class OPSContainerFilter {
 
     private final Job job;
+
+    private LinkedList<String> mapHostsList = new LinkedList<String>();
+    private LinkedList<String> reduceHostsList = new LinkedList<String>();
+    private HashMap<String, Integer> mapHostsNum = new HashMap<String, Integer>();
+    private HashMap<String, Integer> reduceHostsNum = new HashMap<String, Integer>();
 
     /** Maps from a host to the limit of map slots on this node **/
     private final Map<String, Integer> mapLimit = new HashMap<String, Integer>();
@@ -50,12 +52,46 @@ public class OPSContainerFilter {
 
     public void addMapLimit(String hostname, int num) {
         this.mapLimit.put(hostname, num);
+        this.mapHostsList.add(hostname);
+        this.mapHostsNum.put(hostname, num);
         System.out.println("addMapLimit: " + hostname + ", " + num);
     }
 
     public void addReduceLimit(String hostname, int num) {
         this.reduceLimit.put(hostname, num);
+        this.reduceHostsList.add(hostname);
+        this.reduceHostsNum.put(hostname, num);
         System.out.println("addReduceLimit: " + hostname + ", " + num);
+    }
+
+    public String requestMapHost() {
+        if(this.mapHostsList.size() == 0) {
+            System.out.println("requestMapHost: mapHostsList is empty.");
+            return "";
+        }
+        String host = this.mapHostsList.getFirst();
+        int num = this.mapHostsNum.get(host) - 1;
+        if(num == 0) {
+            this.mapHostsList.removeFirst();
+        } else {
+            this.mapHostsNum.put(host, num);
+        }
+        return host;
+    }
+
+    public String requestReduceHost() {
+        if(this.reduceHostsList.size() == 0) {
+            System.out.println("requestMapHost: reduceHostsList is empty.");
+            return "";
+        }
+        String host = this.reduceHostsList.getFirst();
+        int num = this.reduceHostsNum.get(host) - 1;
+        if(num == 0) {
+            this.reduceHostsList.removeFirst();
+        } else {
+            this.reduceHostsNum.put(host, num);
+        }
+        return host;
     }
 
     public boolean filterMap(String hostname) {
