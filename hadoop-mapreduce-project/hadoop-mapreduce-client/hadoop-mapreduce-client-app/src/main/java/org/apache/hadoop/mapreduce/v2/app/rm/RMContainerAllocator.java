@@ -49,6 +49,7 @@ import org.apache.hadoop.mapred.ops.EtcdService;
 import org.apache.hadoop.mapred.ops.JobConf;
 import org.apache.hadoop.mapred.ops.OpsNode;
 import org.apache.hadoop.mapred.ops.OpsUtils;
+import org.apache.hadoop.mapred.ops.TaskAlloc;
 import org.apache.hadoop.mapreduce.JobCounter;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.jobhistory.JobHistoryEvent;
@@ -195,6 +196,7 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   /** For OPS **/
   private OPSContainerFilter opsFilter;
+  private TaskAlloc taskAlloc;
 
   public RMContainerAllocator(ClientService clientService, AppContext context) {
     super(clientService, context);
@@ -300,6 +302,20 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Override
   protected synchronized void heartbeat() throws Exception {
+    // OPS: wait for TaskAlloc
+    if(this.taskAlloc == null) {
+      // Get from etcd
+      String alloc = EtcdService.get(OpsUtils.ETCD_TASKALLOC_PATH + "/taskAlloc-" + Integer.toString(getJob().getID().getId()));
+      System.out.println("heartbeat: get taskAlloc -> " + alloc);
+      if(alloc == "" || alloc == null) {
+        System.out.println("heartbeat: wait for taskAlloc.");
+        return;
+      }
+      Gson gson = new Gson();
+      this.taskAlloc = gson.fromJson(alloc, TaskAlloc.class);
+      System.out.println("heartbeat: get taskAlloc -> " + this.taskAlloc.toString());
+    }
+
     scheduleStats.updateAndLogIfChanged("Before Scheduling: ");
     List<Container> allocatedContainers = getResources();
     if (allocatedContainers != null && allocatedContainers.size() > 0) {
@@ -1045,8 +1061,6 @@ public class RMContainerAllocator extends RMContainerRequestor
 
     public ScheduledRequests(OPSContainerFilter filter) {
       this.opsFilter = filter;
-      this.opsFilter.addMapLimit("ist-slave1", 2);
-      this.opsFilter.addMapLimit("ist-slave2", 6);
     }
     
     boolean remove(TaskAttemptId tId) {
