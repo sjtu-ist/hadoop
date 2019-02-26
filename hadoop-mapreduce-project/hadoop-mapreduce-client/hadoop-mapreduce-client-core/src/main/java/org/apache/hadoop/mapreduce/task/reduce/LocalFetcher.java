@@ -64,7 +64,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
   private Map<TaskAttemptID, MapOutputFile> localMapFiles;
 
   // TODO: OPS
-  private final String nodeIp = InetAddress.getLocalHost().getHostAddress();
+  private final String nodeIp = InetAddress.getLocalHost().getHostName();
   private String jobId;
   private String reduceId;
   private String reduceNum = null;

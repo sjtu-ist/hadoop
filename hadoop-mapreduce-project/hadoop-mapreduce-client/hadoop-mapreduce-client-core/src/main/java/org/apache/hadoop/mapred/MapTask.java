@@ -1542,12 +1542,12 @@ public class MapTask extends Task {
       MapConf conf = new MapConf(
           Integer.toString(mapId.getTaskID().getId()),
           Integer.toString(mapId.getJobID().getId()),
-          new OpsNode(InetAddress.getLocalHost().getHostAddress()),
+          new OpsNode(InetAddress.getLocalHost().getHostName()),
           outputPath.toString(),
           outputIndexPath.toString()
       );
       String key = OpsUtils.buildKeyMapCompleted(
-          InetAddress.getLocalHost().getHostAddress(),
+          InetAddress.getLocalHost().getHostName(),
           Integer.toString(mapId.getJobID().getId()),
           Integer.toString(mapId.getTaskID().getId()
           )
