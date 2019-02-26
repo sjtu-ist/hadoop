@@ -49,7 +49,8 @@ import org.apache.hadoop.mapred.ops.EtcdService;
 import org.apache.hadoop.mapred.ops.JobConf;
 import org.apache.hadoop.mapred.ops.OpsNode;
 import org.apache.hadoop.mapred.ops.OpsUtils;
-import org.apache.hadoop.mapred.ops.TaskAlloc;
+import org.apache.hadoop.mapred.ops.MapTaskAlloc;
+import org.apache.hadoop.mapred.ops.ReduceTaskAlloc;
 import org.apache.hadoop.mapreduce.JobCounter;
 import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.jobhistory.JobHistoryEvent;
@@ -149,6 +150,10 @@ public class RMContainerAllocator extends RMContainerRequestor
   private final LinkedList<ContainerRequest> pendingReduces = 
     new LinkedList<ContainerRequest>();
 
+  // For OPS, maps which are waiting for MapTaskAlloc
+  private final LinkedList<ContainerRequestEvent> pendingMaps = 
+  new LinkedList<ContainerRequestEvent>();
+
   //holds information about the assigned containers to task attempts
   private final AssignedRequests assignedRequests;
   
@@ -196,7 +201,8 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   /** For OPS **/
   private OPSContainerFilter opsFilter;
-  private TaskAlloc taskAlloc;
+  private MapTaskAlloc mapTaskAlloc;
+  private ReduceTaskAlloc reduceTaskAlloc;
 
   public RMContainerAllocator(ClientService clientService, AppContext context) {
     super(clientService, context);
@@ -302,18 +308,24 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Override
   protected synchronized void heartbeat() throws Exception {
-    // OPS: wait for TaskAlloc
-    if(this.taskAlloc == null) {
+    // OPS: wait for MapTaskAlloc
+    if(this.mapTaskAlloc == null) {
       // Get from etcd
-      String alloc = EtcdService.get(OpsUtils.ETCD_TASKALLOC_PATH + "/taskAlloc-" + Integer.toString(getJob().getID().getId()));
-      System.out.println("heartbeat: get taskAlloc -> " + alloc);
+      String alloc = EtcdService.get(OpsUtils.ETCD_MAPTASKALLOC_PATH + "/mapTaskAlloc-" + Integer.toString(getJob().getID().getId()));
       if(alloc == "" || alloc == null) {
-        System.out.println("heartbeat: wait for taskAlloc.");
+        System.out.println("heartbeat: wait for mapTaskAlloc.");
         return;
       }
       Gson gson = new Gson();
-      this.taskAlloc = gson.fromJson(alloc, TaskAlloc.class);
-      System.out.println("heartbeat: get taskAlloc -> " + this.taskAlloc.toString());
+      this.mapTaskAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
+      System.out.println("heartbeat: get mapTaskAlloc -> " + this.mapTaskAlloc.toString());
+
+      Map<String, Integer> mapPreAlloc = this.mapTaskAlloc.getMapPreAlloc();
+      for(String host : mapPreAlloc.keySet()) {
+        this.opsFilter.addMapLimit(host, mapPreAlloc.get(host));
+      }
+
+      scheduleAllMaps();
     }
 
     scheduleStats.updateAndLogIfChanged("Before Scheduling: ");
@@ -336,6 +348,25 @@ public class RMContainerAllocator extends RMContainerRequestor
       if (!reducerPreempted) {
         // Only schedule new reducers if no reducer preemption happens for
         // this heartbeat
+
+        // OPS: wait for ReduceTaskAlloc
+        if(this.reduceTaskAlloc == null) {
+          // Get from etcd
+          String alloc = EtcdService.get(OpsUtils.ETCD_REDUCETASKALLOC_PATH
+              + "/reduceTaskAlloc-" + Integer.toString(getJob().getID().getId()));
+          if(alloc == "" || alloc == null) {
+            System.out.println("heartbeat: wait for reduceTaskAlloc.");
+            return;
+          }
+          Gson gson = new Gson();
+          this.reduceTaskAlloc = gson.fromJson(alloc, ReduceTaskAlloc.class);
+          System.out.println("heartbeat: get reduceTaskAlloc -> " + this.reduceTaskAlloc.toString());
+
+          Map<String, Integer> reducePreAlloc = this.reduceTaskAlloc.getReducePreAlloc();
+          for(String host : reducePreAlloc.keySet()) {
+            this.opsFilter.addReduceLimit(host, reducePreAlloc.get(host));
+          }
+        }
         scheduleReduces(getJob().getTotalMaps(), completedMaps,
             scheduledRequests.maps.size(), scheduledRequests.reduces.size(),
             assignedRequests.maps.size(), assignedRequests.reduces.size(),
@@ -446,14 +477,11 @@ public class RMContainerAllocator extends RMContainerRequestor
         reqEvent.getCapability().setVirtualCores(
           mapResourceRequest.getVirtualCores());
 
-        // For OPS, modify request host.
-        String host = this.opsFilter.requestMapHost();
-        if(host != "") {
-          String[] hosts = {host};
-          reqEvent.setHosts(hosts);
-        }
+        // scheduledRequests.addMap(reqEvent);//maps are immediately scheduled
 
-        scheduledRequests.addMap(reqEvent);//maps are immediately scheduled
+        // For OPS, maps are waiting for MapTaskAlloc
+        this.pendingMaps.add(reqEvent);
+
       } else {
         if (reduceResourceRequest.equals(Resources.none())) {
           reduceResourceRequest = reqEvent.getCapability();
@@ -488,11 +516,11 @@ public class RMContainerAllocator extends RMContainerRequestor
         } else {
 
           // For OPS, modify request host.
-          String host = this.opsFilter.requestReduceHost();
-          if(host != "") {
-            String[] hosts = {host};
-            reqEvent.setHosts(hosts);
-          }
+          // String host = this.opsFilter.requestReduceHost();
+          // if(host != "") {
+          //   String[] hosts = {host};
+          //   reqEvent.setHosts(hosts);
+          // }
 
           pendingReduces.add(new ContainerRequest(reqEvent, PRIORITY_REDUCE,
               reduceNodeLabelExpression));
@@ -764,10 +792,37 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   @Private
   public void scheduleAllReduces() {
+    System.out.println("ScheduleAllReduces");
     for (ContainerRequest req : pendingReduces) {
+      // For OPS, modify request host.
+      String host = this.opsFilter.requestReduceHost();
+      if(host != "") {
+        String[] hosts = {host};
+        req.hosts = hosts;
+        String[] racks = {"/default-rack"};
+        req.racks = racks;
+      }
+      System.out.println("scheduleAllReduces: modify request host -> " + host);
+
       scheduledRequests.addReduce(req);
     }
     pendingReduces.clear();
+  }
+
+  public void scheduleAllMaps() {
+    System.out.println("ScheduleAllMaps");
+    for(ContainerRequestEvent reqEvent : this.pendingMaps) {
+      // For OPS, modify request host.
+      String host = this.opsFilter.requestMapHost();
+      if(host != "") {
+        String[] hosts = {host};
+        reqEvent.setHosts(hosts);
+      }
+      System.out.println("scheduleAllMaps: modify request host -> " + host);
+
+      scheduledRequests.addMap(reqEvent);
+    }
+    pendingMaps.clear();
   }
   
   @Private
@@ -775,6 +830,17 @@ public class RMContainerAllocator extends RMContainerRequestor
     //more reduce to be scheduled
     for (int i = 0; i < rampUp; i++) {
       ContainerRequest request = pendingReduces.removeFirst();
+
+      // For OPS, modify request host.
+      String host = this.opsFilter.requestReduceHost();
+      if(host != "") {
+        String[] hosts = {host};
+        request.hosts = hosts;
+        String[] racks = {"/default-rack"};
+        request.racks = racks;
+      }
+      System.out.println("rampUpReduces: modify request host -> " + host);
+
       scheduledRequests.addReduce(request);
     }
   }
@@ -1238,7 +1304,7 @@ public class RMContainerAllocator extends RMContainerRequestor
       for (Container c : allocatedContainers) {
         str += "[" + c.getNodeId().getHost() + ", " + c.getId().getContainerId() + "], \n";
       }
-      System.out.println("allocatedContainers: " + str);
+      System.out.println("allocatedContainers: \n" + str);
       assignContainers(allocatedContainers);
       
       // release container if we could not assign it 

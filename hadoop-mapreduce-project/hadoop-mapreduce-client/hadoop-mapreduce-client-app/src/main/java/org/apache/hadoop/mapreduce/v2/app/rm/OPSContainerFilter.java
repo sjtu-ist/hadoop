@@ -81,7 +81,7 @@ public class OPSContainerFilter {
 
     public String requestReduceHost() {
         if(this.reduceHostsList.size() == 0) {
-            System.out.println("requestMapHost: reduceHostsList is empty.");
+            System.out.println("requestReduceHost: reduceHostsList is empty.");
             return "";
         }
         String host = this.reduceHostsList.getFirst();

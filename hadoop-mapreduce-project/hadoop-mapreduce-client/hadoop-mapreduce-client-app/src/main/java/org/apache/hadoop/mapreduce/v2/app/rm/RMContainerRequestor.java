@@ -118,8 +118,9 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   static class ContainerRequest {
     final TaskAttemptId attemptID;
     final Resource capability;
-    final String[] hosts;
-    final String[] racks;
+    // For OPS, remove 'final'
+    String[] hosts;
+    String[] racks;
     //final boolean earlierAttemptFailed;
     final Priority priority;
     final String nodeLabelExpression;
@@ -395,11 +396,13 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     for (String host : req.hosts) {
       // Data-local
       if (!isNodeBlacklisted(host)) {
+        System.out.println("addResourceRequest: priority -> " + req.priority.toString() + ", host -> " + host);
         addResourceRequest(req.priority, host, req.capability,
             null);
       }
     }
 
+    // For OPS
     // Nothing Rack-local for now
     for (String rack : req.racks) {
       addResourceRequest(req.priority, rack, req.capability,

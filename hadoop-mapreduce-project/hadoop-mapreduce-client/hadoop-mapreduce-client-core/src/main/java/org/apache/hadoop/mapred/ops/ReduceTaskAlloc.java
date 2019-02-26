@@ -22,11 +22,9 @@ import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TaskAlloc {
+public class ReduceTaskAlloc {
     private final JobConf job;
 
-    /** Maps from a host to the map slots on this node **/
-    private final Map<String, Integer> mapPreAlloc = new HashMap<String, Integer>();
     /** Maps from a host to the reduce slots on this node **/
     private final Map<String, Integer> reducePreAlloc = new HashMap<String, Integer>();
     /** Maps from a host to the number of reduce slots on this node **/
@@ -34,12 +32,8 @@ public class TaskAlloc {
             new HashMap<String, LinkedList<Integer>>();
     private int reduceNum = -1;
 
-    public TaskAlloc(JobConf job) {
+    public ReduceTaskAlloc(JobConf job) {
         this.job = job;
-    }
-
-    public void addMapPreAlloc(String host, int num) {
-        this.mapPreAlloc.put(host, num);
     }
 
     public void addReducePreAlloc(String host, int num) {
@@ -59,12 +53,8 @@ public class TaskAlloc {
         return job;
     }
 
-    public int getMapPreAlloc(String host) {
-        return this.mapPreAlloc.get(host);
-    }
-
-    public int getReducePreAlloc(String host) {
-        return this.reducePreAlloc.get(host);
+    public Map<String, Integer> getReducePreAlloc() {
+        return this.reducePreAlloc;
     }
 
     public LinkedList<Integer> getReducePreAllocOrder(String host) {
