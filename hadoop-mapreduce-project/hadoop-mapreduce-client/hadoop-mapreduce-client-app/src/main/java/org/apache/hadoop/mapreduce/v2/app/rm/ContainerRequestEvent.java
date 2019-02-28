@@ -27,7 +27,7 @@ public class ContainerRequestEvent extends ContainerAllocatorEvent {
   private final Resource capability;
   // For OPS, remove 'final'
   private String[] hosts;
-  private final String[] racks;
+  private String[] racks;
   private boolean earlierAttemptFailed = false;
 
   public ContainerRequestEvent(TaskAttemptId attemptID, 
@@ -62,6 +62,10 @@ public class ContainerRequestEvent extends ContainerAllocatorEvent {
   // For OPS
   public void setHosts(String[] hosts) {
     this.hosts = hosts;
+  }
+
+  public void setRacks(String[] racks) {
+    this.racks = racks;
   }
   
   public String[] getRacks() {

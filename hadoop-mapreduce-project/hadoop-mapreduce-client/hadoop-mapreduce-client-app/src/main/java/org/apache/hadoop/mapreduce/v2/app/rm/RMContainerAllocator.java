@@ -350,12 +350,13 @@ public class RMContainerAllocator extends RMContainerRequestor
         // this heartbeat
 
         // OPS: wait for ReduceTaskAlloc
-        if(this.reduceTaskAlloc == null) {
+        if(this.reduceTaskAlloc == null && getJob().getTotalReduces() != 0) {
           // Get from etcd
           String alloc = EtcdService.get(OpsUtils.ETCD_REDUCETASKALLOC_PATH
               + "/reduceTaskAlloc-" + Integer.toString(getJob().getID().getId()));
           if(alloc == "" || alloc == null) {
             System.out.println("heartbeat: wait for reduceTaskAlloc.");
+            scheduleStats.updateAndLogIfChanged("After Scheduling: ");
             return;
           }
           Gson gson = new Gson();
@@ -817,6 +818,8 @@ public class RMContainerAllocator extends RMContainerRequestor
       if(host != "") {
         String[] hosts = {host};
         reqEvent.setHosts(hosts);
+        String[] racks = {"/default-rack"};
+        reqEvent.setRacks(racks);
       }
       System.out.println("scheduleAllMaps: modify request host -> " + host);
 
