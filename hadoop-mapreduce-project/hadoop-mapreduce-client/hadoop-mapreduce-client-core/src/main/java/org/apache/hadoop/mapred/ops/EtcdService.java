@@ -25,6 +25,7 @@ import com.coreos.jetcd.Watch.Watcher;
 import com.coreos.jetcd.data.ByteSequence;
 import com.coreos.jetcd.data.KeyValue;
 import com.coreos.jetcd.lease.LeaseGrantResponse;
+import com.coreos.jetcd.kv.PutResponse;
 import com.coreos.jetcd.options.GetOption;
 import com.coreos.jetcd.options.PutOption;
 import com.coreos.jetcd.options.WatchOption;
@@ -88,6 +89,12 @@ public class EtcdService {
         client.getKVClient().put(ByteSequence.fromString(key), ByteSequence.fromString(value));
     }
 
+    /** Put etcd, then wait for completion */
+    public static void putToCompleted(String key, String value) {
+        CompletableFuture<PutResponse> response = client.getKVClient().put(ByteSequence.fromString(key), ByteSequence.fromString(value));
+        response.join();
+    }
+
     /**
      * 
      * @param prefix
@@ -139,6 +146,10 @@ public class EtcdService {
         } else {
             keepAliveOnce(leaseId);
         }
+    }
+
+    public static void close() {
+        client.close();
     }
 
 }

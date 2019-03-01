@@ -1303,6 +1303,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         }
       }
 
+      // For OPS
       String str = "";
       for (Container c : allocatedContainers) {
         str += "[" + c.getNodeId().getHost() + ", " + c.getId().getContainerId() + "], \n";

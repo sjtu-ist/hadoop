@@ -345,9 +345,6 @@ public class MapTask extends Task {
     }
 
     EtcdService.initClient();
-    // EtcdService.put("ops/put_test", "putputtest");
-    // String ret = EtcdService.get("ops/get_test");
-    // LOG.info("OPS: get_test: " + ret);
     
     if (useNewApi) {
       runNewMapper(job, splitMetaInfo, umbilical, reporter);
@@ -1552,7 +1549,8 @@ public class MapTask extends Task {
           Integer.toString(mapId.getTaskID().getId()
           )
       );
-      EtcdService.put(key, conf.toString()); 
+      EtcdService.putToCompleted(key, conf.toString()); 
+      EtcdService.close();
       LOG.info("OPS: Put ETCD, key: " + key + " mapConf: " + conf.toString());
     }
 
