@@ -40,6 +40,7 @@ import org.apache.hadoop.mapreduce.v2.app.AppContext;
 import org.apache.hadoop.mapreduce.v2.app.client.ClientService;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -217,6 +218,10 @@ public abstract class RMContainerRequestor extends RMCommunicator {
           + " finishedContainers=" + numCompletedContainers
           + " resourcelimit=" + availableResources + " knownNMs="
           + clusterNmCount);
+
+      for (ResourceRequest request : ask) {
+        System.out.println("makeRemoteRequest: ask -> " + request.getResourceName() + " : " + request.getNumContainers());
+      }
     }
 
     ask.clear();
@@ -414,6 +419,31 @@ public abstract class RMContainerRequestor extends RMCommunicator {
         req.nodeLabelExpression);
   }
 
+  // For OPS
+  protected void addContainerReqOPS(String[] hosts, String[] racks, 
+      Priority priority, Resource capability, String nodeLabelExpression) {
+    // Create resource requests
+    for (String host : hosts) {
+      // Data-local
+      if (!isNodeBlacklisted(host)) {
+        System.out.println("addResourceRequest: priority -> " + priority.toString() + ", host -> " + host);
+        addResourceRequest(priority, host, capability,
+            null);
+      }
+    }
+
+    // For OPS
+    // Nothing Rack-local for now
+    for (String rack : racks) {
+      addResourceRequest(priority, rack, capability,
+          null);
+    }
+
+    // Off-switch
+    addResourceRequest(priority, ResourceRequest.ANY, capability,
+        nodeLabelExpression);
+  }
+
   protected void decContainerReq(ContainerRequest req) {
     // Update resource requests
     for (String hostName : req.hosts) {
@@ -523,6 +553,7 @@ public abstract class RMContainerRequestor extends RMCommunicator {
     // numContainers. So existing values must be replaced explicitly
     ask.remove(remoteRequest);
     ask.add(remoteRequest);    
+    System.out.println("ask.add: remoteRequest -> " + remoteRequest.getResourceName() + " : " + remoteRequest.getNumContainers());
   }
 
   protected void release(ContainerId containerId) {
@@ -570,5 +601,10 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   @VisibleForTesting
   Set<ResourceRequest> getAsk() {
     return ask;
+  }
+
+  // For OPS
+  public void addAsk(ResourceRequest e) {
+    this.ask.add(e);
   }
 }

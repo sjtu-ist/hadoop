@@ -330,6 +330,37 @@ public class RMContainerAllocator extends RMContainerRequestor
 
     scheduleStats.updateAndLogIfChanged("Before Scheduling: ");
     List<Container> allocatedContainers = getResources();
+
+    // For OPS: filter allocatedContainers.
+    Iterator<Container> it = allocatedContainers.iterator();
+    List<Container> reAskMapContainers = new LinkedList<>();
+    List<Container> reAskReduceContainers = new LinkedList<>();
+    while (it.hasNext()) {
+      Container allocated = it.next();
+      Priority priority = allocated.getPriority();
+      if (PRIORITY_REDUCE.equals(priority) && 
+          !this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
+        reAskReduceContainers.add(allocated);
+      } else if(PRIORITY_MAP.equals(priority) &&
+          !this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        reAskMapContainers.add(allocated);
+      }
+    }
+    List<String> mapHosts = this.opsFilter.getFreeMapHosts(reAskMapContainers.size());
+    String[] racks = {"/default-rack"};
+    for (int i = 0; i < reAskMapContainers.size() && i < mapHosts.size(); i++) {
+      String[] hosts = {mapHosts.get(i)};
+      addContainerReqOPS(hosts, racks, PRIORITY_MAP, 
+          reAskMapContainers.get(i).getResource(), mapNodeLabelExpression);
+    }
+    List<String> reduceHosts = this.opsFilter.getFreeReduceHosts(reAskReduceContainers.size());
+    for (int i = 0; i < reAskReduceContainers.size() && i < reduceHosts.size(); i++) {
+      String[] hosts = {reduceHosts.get(i)};
+      addContainerReqOPS(hosts, racks, PRIORITY_REDUCE,
+          reAskReduceContainers.get(i).getResource(), reduceNodeLabelExpression);
+    }
+
+
     if (allocatedContainers != null && allocatedContainers.size() > 0) {
       scheduledRequests.assign(allocatedContainers);
     }
@@ -1311,7 +1342,9 @@ public class RMContainerAllocator extends RMContainerRequestor
       System.out.println("allocatedContainers: \n" + str);
       assignContainers(allocatedContainers);
       
-      // release container if we could not assign it 
+      // For OPS: re-request container.
+
+      // release container we could not assign it 
       it = allocatedContainers.iterator();
       while (it.hasNext()) {
         Container allocated = it.next();
@@ -1331,6 +1364,8 @@ public class RMContainerAllocator extends RMContainerRequestor
       } else if(PRIORITY_MAP.equals(priority)) {
         this.opsFilter.assignMap(allocated.getNodeId().getHost(), assigned.attemptID); 
       }
+
+      System.out.println("decContainerReq: allocated -> " + allocated.getNodeId().getHost() + ", assigned -> " + Arrays.toString(assigned.hosts) );
       
       // Update resource requests
       decContainerReq(assigned);
@@ -1377,9 +1412,9 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
-          continue;
-        }
+        // if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
+        //   continue;
+        // }
 
         ContainerRequest assigned = assignWithoutLocality(allocated);
         if (assigned != null) {
@@ -1468,9 +1503,9 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();        
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
-          continue;
-        }
+        // if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        //   continue;
+        // }
 
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
@@ -1506,9 +1541,9 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
-          continue;
-        }
+        // if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        //   continue;
+        // }
 
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);
@@ -1542,9 +1577,9 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
-          continue;
-        }
+        // if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        //   continue;
+        // }
 
         Priority priority = allocated.getPriority();
         assert PRIORITY_MAP.equals(priority);

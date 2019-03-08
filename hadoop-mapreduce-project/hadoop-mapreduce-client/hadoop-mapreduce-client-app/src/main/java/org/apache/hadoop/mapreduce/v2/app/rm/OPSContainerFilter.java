@@ -20,6 +20,7 @@ package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.LinkedList;
 
 import org.apache.hadoop.mapreduce.v2.app.job.Job;
@@ -148,5 +149,47 @@ public class OPSContainerFilter {
         }
         this.reduceHostMapping.get(hostname).add(id);
         System.out.println("assignReduce: [" + hostname + ", " + id + "]");
+    }
+
+    public List<String> getFreeMapHosts(int n) {
+        int target = n;
+        List<String> hosts = new LinkedList<>();
+        for (String host : this.mapHostsList) {
+            int num = this.mapHostsNum.get(host);
+            if(num >= target) {
+                for(int i = 0; i < target; i++) {
+                    hosts.add(host);
+                }
+                break;
+            } else {
+                target -= num;
+                for(int i = 0; i < num; i++) {
+                    hosts.add(host);
+                }
+            }
+        }
+        System.out.println("getFreeMapHosts: target -> " + n + ", get -> " + hosts.size());
+        return hosts;
+    }
+
+    public List<String> getFreeReduceHosts(int n) {
+        int target = n;
+        List<String> hosts = new LinkedList<>();
+        for (String host : this.reduceHostsList) {
+            int num = this.reduceHostsNum.get(host);
+            if(num >= target) {
+                for(int i = 0; i < target; i++) {
+                    hosts.add(host);
+                }
+                break;
+            } else {
+                target -= num;
+                for(int i = 0; i < num; i++) {
+                    hosts.add(host);
+                }
+            }
+        }
+        System.out.println("getFreeReduceHosts: target -> " + n + ", get -> " + hosts.size());
+        return hosts;
     }
 }

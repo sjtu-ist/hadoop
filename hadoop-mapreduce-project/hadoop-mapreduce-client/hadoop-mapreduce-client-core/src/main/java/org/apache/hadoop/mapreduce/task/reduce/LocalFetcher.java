@@ -141,22 +141,22 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     Gson gson = new Gson();
 
     try {
-      // Register reduceTask
-      String keyReduceTask = OpsUtils.buildKeyReduceTask(this.nodeIp, this.jobId, this.reduceId);
-      ReduceConf reduceTask = new ReduceConf(this.reduceId, this.jobId, new OpsNode(this.nodeIp));
-      EtcdService.put(keyReduceTask, gson.toJson(reduceTask));
-      LOG.info("OPS: Register reduceTask: " + keyReduceTask);
-
       // Watch ETCD for reduceNum
       String keyReduceNum = OpsUtils.buildKeyReduceNum(this.nodeIp, this.jobId, this.reduceId);
       LOG.info("OPS: Watch ReduceNum: " + keyReduceNum);
       ReduceWatcher reduceNumWatcher = new ReduceWatcher(this, keyReduceNum, this.jobId);
       reduceNumWatcher.start();
-      List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
-      if(getNum.size() == 1) {
-        this.setReduceNum(getNum.get(0).getValue().toStringUtf8());
-      }
+      // List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
+      // if(getNum.size() == 1) {
+      //   this.setReduceNum(getNum.get(0).getValue().toStringUtf8());
+      // }
 
+      // Register reduceTask
+      String keyReduceTask = OpsUtils.buildKeyReduceTask(this.nodeIp, this.jobId, this.reduceId);
+      ReduceConf reduceTask = new ReduceConf(this.reduceId, this.jobId, new OpsNode(this.nodeIp));
+      EtcdService.put(keyReduceTask, gson.toJson(reduceTask));
+      LOG.info("OPS: Register reduceTask: " + keyReduceTask);
+      
       // Wait for reduceNum
       String num = this.getReduceNum();
       reduceNumWatcher.doStopped();
@@ -201,6 +201,9 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
           break;
         }
       }
+
+      // OPS: Close etcd.
+      EtcdService.close();
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
     }
