@@ -86,6 +86,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     this.localMapFiles = localMapFiles; // OPS: localMapFiles is null
 
     // TODO: OPS
+    EtcdService.initClient();
     this.jobId = Integer.toString(reduceId.getJobID().getId());
     this.reduceId = Integer.toString(reduceId.getTaskID().getId());
 
@@ -137,7 +138,6 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
 
   public void run() {
     LOG.info("OPS: LocalFetcher start");
-    EtcdService.initClient();
     Gson gson = new Gson();
 
     try {
@@ -146,10 +146,6 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       LOG.info("OPS: Watch ReduceNum: " + keyReduceNum);
       ReduceWatcher reduceNumWatcher = new ReduceWatcher(this, keyReduceNum, this.jobId);
       reduceNumWatcher.start();
-      // List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
-      // if(getNum.size() == 1) {
-      //   this.setReduceNum(getNum.get(0).getValue().toStringUtf8());
-      // }
 
       // Register reduceTask
       String keyReduceTask = OpsUtils.buildKeyReduceTask(this.nodeIp, this.jobId, this.reduceId);
@@ -157,6 +153,10 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       EtcdService.put(keyReduceTask, gson.toJson(reduceTask));
       LOG.info("OPS: Register reduceTask: " + keyReduceTask);
       
+      List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
+      if(getNum.size() == 1) {
+        this.setReduceNum(getNum.get(0).getValue().toStringUtf8());
+      }
       // Wait for reduceNum
       String num = this.getReduceNum();
       reduceNumWatcher.doStopped();
