@@ -170,6 +170,11 @@ public abstract class RMContainerRequestor extends RMCommunicator {
       sb.append("Priority[").append(priority).append("]");
       return sb.toString();
     }
+
+    // For OPS
+    public TaskAttemptId getAttemptID() {
+      return this.attemptID;
+    }
   }
 
   @Override
@@ -607,4 +612,5 @@ public abstract class RMContainerRequestor extends RMCommunicator {
   public void addAsk(ResourceRequest e) {
     this.ask.add(e);
   }
+  
 }

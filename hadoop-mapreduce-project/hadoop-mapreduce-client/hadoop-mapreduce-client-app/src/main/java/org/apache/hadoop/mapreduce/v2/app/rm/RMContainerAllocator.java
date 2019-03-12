@@ -1154,6 +1154,10 @@ public class RMContainerAllocator extends RMContainerRequestor
       new HashMap<String, LinkedList<TaskAttemptId>>();
     private final Map<String, LinkedList<TaskAttemptId>> mapsRackMapping = 
       new HashMap<String, LinkedList<TaskAttemptId>>();
+
+    // For OPS
+    private final Map<String, LinkedList<TaskAttemptId>> reducesHostMapping = 
+      new HashMap<String, LinkedList<TaskAttemptId>>();
     @VisibleForTesting
     final Map<TaskAttemptId, ContainerRequest> maps =
       new LinkedHashMap<TaskAttemptId, ContainerRequest>();
@@ -1239,6 +1243,17 @@ public class RMContainerAllocator extends RMContainerRequestor
     void addReduce(ContainerRequest req) {
       reduces.put(req.attemptID, req);
       addContainerReq(req);
+      for (String host : req.hosts) {
+        LinkedList<TaskAttemptId> list = reducesHostMapping.get(host);
+        if (list == null) {
+          list = new LinkedList<TaskAttemptId>();
+          reducesHostMapping.put(host, list);
+        }
+        list.add(req.getAttemptID());
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Added attempt req to host " + host);
+        }
+      }
     }
     
     // this method will change the list of allocatedContainers.
@@ -1418,15 +1433,39 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
+        Priority priority = allocated.getPriority();
+        if(PRIORITY_MAP.equals(priority)){
           continue;
         }
 
-        ContainerRequest assigned = assignWithoutLocality(allocated);
-        if (assigned != null) {
-          containerAssigned(allocated, assigned);
-          it.remove();
+        if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
+          continue;
         }
+        // For OPS: assign reduce with locality
+        
+        // "if (maps.containsKey(tId))" below should be almost always true.
+        // hence this while loop would almost always have O(1) complexity
+        String host = allocated.getNodeId().getHost();
+        LinkedList<TaskAttemptId> list = reducesHostMapping.get(host);
+        while (list != null && list.size() > 0) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Host matched to the request list " + host);
+          }
+          TaskAttemptId tId = list.removeFirst();
+          if (reduces.containsKey(tId)) {
+            ContainerRequest assigned = reduces.remove(tId);
+            containerAssigned(allocated, assigned);
+            it.remove();
+            break;
+          }
+        }
+
+        // ContainerRequest assigned = assignWithoutLocality(allocated);
+        // if (assigned != null) {
+        //   containerAssigned(allocated, assigned);
+        //   it.remove();
+        // }
+
       }
 
       assignMapsWithLocality(allocatedContainers);
