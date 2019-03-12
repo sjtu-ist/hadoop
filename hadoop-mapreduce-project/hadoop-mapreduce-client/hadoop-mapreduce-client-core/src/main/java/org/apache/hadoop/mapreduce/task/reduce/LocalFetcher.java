@@ -150,7 +150,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       // Register reduceTask
       String keyReduceTask = OpsUtils.buildKeyReduceTask(this.nodeIp, this.jobId, this.reduceId);
       ReduceConf reduceTask = new ReduceConf(this.reduceId, this.jobId, new OpsNode(this.nodeIp));
-      EtcdService.put(keyReduceTask, gson.toJson(reduceTask));
+      EtcdService.putToCompleted(keyReduceTask, gson.toJson(reduceTask));
       LOG.info("OPS: Register reduceTask: " + keyReduceTask);
       
       List<KeyValue> getNum = EtcdService.getKVs(keyReduceNum);
