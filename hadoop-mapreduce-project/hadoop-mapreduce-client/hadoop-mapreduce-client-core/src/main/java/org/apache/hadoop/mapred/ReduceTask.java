@@ -48,6 +48,7 @@ import org.apache.hadoop.io.SequenceFile.CompressionType;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
+import org.apache.hadoop.mapred.ops.EtcdService;
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskCounter;
@@ -399,9 +400,9 @@ public class ReduceTask extends Task {
       runOldReducer(job, umbilical, reporter, rIter, comparator, 
                     keyClass, valueClass);
     }
-
     shuffleConsumerPlugin.close();
     LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
+    EtcdService.close();
     done(umbilical, reporter);
   }
 
