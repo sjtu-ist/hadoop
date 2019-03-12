@@ -154,17 +154,21 @@ public class OPSContainerFilter {
     public List<String> getFreeMapHosts(int n) {
         int target = n;
         List<String> hosts = new LinkedList<>();
-        for (String host : this.mapHostsList) {
-            int num = this.mapHostsNum.get(host);
-            if(num >= target) {
-                for(int i = 0; i < target; i++) {
-                    hosts.add(host);
-                }
-                break;
-            } else {
-                target -= num;
-                for(int i = 0; i < num; i++) {
-                    hosts.add(host);
+        for (String host : this.mapLimit.keySet()){
+            int mapNum = this.mapHostMapping.get(host).size();
+            int limit = this.mapLimit.get(host);
+            if(mapNum < limit) {
+                int num = limit - mapNum;
+                if(num >= target) {
+                    for(int i = 0; i < target; i++) {
+                        hosts.add(host);
+                    }
+                    break;
+                } else {
+                    target -= num;
+                    for(int i = 0; i < num; i++) {
+                        hosts.add(host);
+                    }
                 }
             }
         }
@@ -175,17 +179,21 @@ public class OPSContainerFilter {
     public List<String> getFreeReduceHosts(int n) {
         int target = n;
         List<String> hosts = new LinkedList<>();
-        for (String host : this.reduceHostsList) {
-            int num = this.reduceHostsNum.get(host);
-            if(num >= target) {
-                for(int i = 0; i < target; i++) {
-                    hosts.add(host);
-                }
-                break;
-            } else {
-                target -= num;
-                for(int i = 0; i < num; i++) {
-                    hosts.add(host);
+        for (String host : this.reduceLimit.keySet()){
+            int reduceNum = this.reduceHostMapping.get(host).size();
+            int limit = this.reduceLimit.get(host);
+            if(reduceNum < limit) {
+                int num = limit - reduceNum;
+                if(num >= target) {
+                    for(int i = 0; i < target; i++) {
+                        hosts.add(host);
+                    }
+                    break;
+                } else {
+                    target -= num;
+                    for(int i = 0; i < num; i++) {
+                        hosts.add(host);
+                    }
                 }
             }
         }
