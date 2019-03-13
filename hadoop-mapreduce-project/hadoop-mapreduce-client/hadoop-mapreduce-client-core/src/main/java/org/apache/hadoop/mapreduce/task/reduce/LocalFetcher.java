@@ -162,7 +162,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       reduceNumWatcher.doStopped();
 
       // Watch ETCD for ShuffleCompleted
-      String keyShuffleWatcher = OpsUtils.buildKeyShuffleCompleted(this.nodeIp, this.jobId, num, "");
+      String keyShuffleWatcher = OpsUtils.buildWatchKeyShuffleCompleted(this.nodeIp, this.jobId, num);
       ShuffleWatcher shuffleWatcher = new ShuffleWatcher(this, keyShuffleWatcher);
       LOG.info("OPS: Watch shuffle: " + keyShuffleWatcher);
       shuffleWatcher.start();
