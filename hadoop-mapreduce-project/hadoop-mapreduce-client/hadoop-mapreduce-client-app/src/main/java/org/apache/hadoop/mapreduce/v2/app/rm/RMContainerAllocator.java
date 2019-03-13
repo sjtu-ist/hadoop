@@ -311,7 +311,7 @@ public class RMContainerAllocator extends RMContainerRequestor
     // OPS: wait for MapTaskAlloc
     if(this.mapTaskAlloc == null) {
       // Get from etcd
-      String alloc = EtcdService.get(OpsUtils.ETCD_MAPTASKALLOC_PATH + "/mapTaskAlloc-" + Integer.toString(getJob().getID().getId()));
+      String alloc = EtcdService.get(OpsUtils.buildKeyMapTaskAlloc(Integer.toString(getJob().getID().getId())));
       if(alloc == "" || alloc == null) {
         System.out.println("heartbeat: wait for mapTaskAlloc.");
         return;
@@ -389,8 +389,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         // OPS: wait for ReduceTaskAlloc
         if(this.reduceTaskAlloc == null && getJob().getTotalReduces() != 0) {
           // Get from etcd
-          String alloc = EtcdService.get(OpsUtils.ETCD_REDUCETASKALLOC_PATH
-              + "/reduceTaskAlloc-" + Integer.toString(getJob().getID().getId()));
+          String alloc = EtcdService.get(OpsUtils.buildKeyReduceTaskAlloc(Integer.toString(getJob().getID().getId())));
           if(alloc == "" || alloc == null) {
             System.out.println("heartbeat: wait for reduceTaskAlloc.");
             scheduleStats.updateAndLogIfChanged("After Scheduling: ");
