@@ -321,9 +321,9 @@ public class RMContainerAllocator extends RMContainerRequestor
       System.out.println("heartbeat: get mapTaskAlloc -> " + this.mapTaskAlloc.toString());
 
       Map<String, Integer> mapPreAlloc = this.mapTaskAlloc.getMapPreAlloc();
-      for(String host : mapPreAlloc.keySet()) {
-        this.opsFilter.addMapLimit(host, mapPreAlloc.get(host));
-      }
+      // for(String host : mapPreAlloc.keySet()) {
+        // this.opsFilter.addMapLimit(host, mapPreAlloc.get(host));
+      // }
 
       scheduleAllMaps();
     }
@@ -850,14 +850,14 @@ public class RMContainerAllocator extends RMContainerRequestor
     System.out.println("ScheduleAllMaps");
     for(ContainerRequestEvent reqEvent : this.pendingMaps) {
       // For OPS, modify request host.
-      String host = this.opsFilter.requestMapHost();
-      if(host != "") {
-        String[] hosts = {host};
-        reqEvent.setHosts(hosts);
-        String[] racks = {"/default-rack"};
-        reqEvent.setRacks(racks);
-      }
-      System.out.println("scheduleAllMaps: modify request host -> " + host);
+      // String host = this.opsFilter.requestMapHost();
+      // if(host != "") {
+      //   String[] hosts = {host};
+      //   reqEvent.setHosts(hosts);
+      //   String[] racks = {"/default-rack"};
+      //   reqEvent.setRacks(racks);
+      // }
+      // System.out.println("scheduleAllMaps: modify request host -> " + host);
 
       scheduledRequests.addMap(reqEvent);
     }
