@@ -30,7 +30,7 @@ public class OPSContainerFilter {
 
     private final Job job;
 
-    private LinkedList<String> mapHostsList = new LinkedList<String>();
+    // private LinkedList<String> mapHostsList = new LinkedList<String>();
     private LinkedList<String> reduceHostsList = new LinkedList<String>();
     private HashMap<String, Integer> mapHostsNum = new HashMap<String, Integer>();
     private HashMap<String, Integer> reduceHostsNum = new HashMap<String, Integer>();
@@ -53,7 +53,7 @@ public class OPSContainerFilter {
 
     public void addMapLimit(String hostname, int num) {
         this.mapLimit.put(hostname, num);
-        this.mapHostsList.add(hostname);
+
         this.mapHostsNum.put(hostname, num);
         System.out.println("addMapLimit: " + hostname + ", " + num);
     }
@@ -65,19 +65,50 @@ public class OPSContainerFilter {
         System.out.println("addReduceLimit: " + hostname + ", " + num);
     }
 
-    public String requestMapHost() {
-        if(this.mapHostsList.size() == 0) {
-            System.out.println("requestMapHost: mapHostsList is empty.");
-            return "";
+    // public String requestMapHost() {
+    //     if(this.mapHostsList.size() == 0) {
+    //         System.out.println("requestMapHost: mapHostsList is empty.");
+    //         return "";
+    //     }
+    //     String host = this.mapHostsList.getFirst();
+    //     int num = this.mapHostsNum.get(host) - 1;
+    //     if(num == 0) {
+    //         this.mapHostsList.removeFirst();
+    //     } else {
+    //         this.mapHostsNum.put(host, num);
+    //     }
+    //     return host;
+    // }
+
+    public String requestMapHostWithLocality(String[] hosts) {
+        String ret = null;
+        for (String host : hosts) {
+            if(this.mapHostsNum.containsKey(host)) {
+                int num = this.mapHostsNum.get(host) - 1;
+                ret = host;
+                if(num == 0) {
+                    this.mapHostsNum.remove(host);
+                } else {
+                    this.mapHostsNum.put(host, num);
+                }
+                break;
+            }
         }
-        String host = this.mapHostsList.getFirst();
-        int num = this.mapHostsNum.get(host) - 1;
-        if(num == 0) {
-            this.mapHostsList.removeFirst();
-        } else {
-            this.mapHostsNum.put(host, num);
+
+        if(ret == null) {
+            System.out.println("requestMapHostWithLocality: Can not find local host.");
+            for(String host : this.mapHostsNum.keySet()) {
+                int num = this.mapHostsNum.get(host) - 1;
+                if(num == 0) {
+                    this.mapHostsNum.remove(host);
+                } else {
+                    this.mapHostsNum.put(host, num);
+                }
+                ret = host;
+                break;
+            }
         }
-        return host;
+        return ret;
     }
 
     public String requestReduceHost() {
