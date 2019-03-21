@@ -59,6 +59,7 @@ import org.apache.hadoop.mapred.Merger.Segment;
 import org.apache.hadoop.mapred.SortedRanges.SkipRangeIterator;
 import org.apache.hadoop.mapred.ops.EtcdService;
 import org.apache.hadoop.mapred.ops.MapConf;
+import org.apache.hadoop.mapred.ops.MapReport;
 import org.apache.hadoop.mapred.ops.OpsNode;
 import org.apache.hadoop.mapred.ops.OpsUtils;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -311,7 +312,8 @@ public class MapTask extends Task {
     throws IOException, ClassNotFoundException, InterruptedException {
     this.umbilical = umbilical;
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "start");
+    long startTime = System.currentTimeMillis();
+    LOG.info("[IST]-" + startTime + "-" + getTaskID() + "-map-" + "start");
 
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
@@ -352,7 +354,28 @@ public class MapTask extends Task {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "stop");
+    // For OPS
+    long stopTime = System.currentTimeMillis();
+    LOG.info("[IST]-" + stopTime + "-" + getTaskID() + "-map-" + "stop");
+
+    MapConf conf = reporter.getMapConf();
+    long outputDataSize = 0;
+    long mapFinishTime = stopTime - startTime;
+    if (conf == null) {
+      System.out.println("MapConf missing!");
+    }
+    else {
+      Counters.Counter mapOutputByteCounter = reporter.getCounter(TaskCounter.MAP_OUTPUT_BYTES);
+      if (mapOutputByteCounter != null) {
+        outputDataSize = mapOutputByteCounter.getValue();
+      }
+      MapReport mapReport = new MapReport(conf, outputDataSize, mapFinishTime);
+      String key = OpsUtils.buildKeyMapCompleted(
+          mapReport.getOpsNode().getIp(), mapReport.getJobId(), mapReport.getTaskId());
+      EtcdService.putToCompleted(key, mapReport.toString()); 
+      EtcdService.close();
+      System.out.println("Put ETCD, key: " + key + " mapReport: " + mapReport.toString());
+    }
 
     done(umbilical, reporter);
   }
@@ -1531,11 +1554,9 @@ public class MapTask extends Task {
       Path outputPath = mapOutputFile.getOutputFile();
       fileOutputByteCounter.increment(rfs.getFileStatus(outputPath).getLen());
 
-      // TODO: Connect to OPS
+      // For OPS
       Path outputIndexPath = mapOutputFile.getOutputIndexFile();
       TaskAttemptID mapId = getTaskID();
-
-      LOG.info("OPS: Map done, outputIndexPath: " + outputIndexPath.toString());
       MapConf conf = new MapConf(
           Integer.toString(mapId.getTaskID().getId()),
           Integer.toString(mapId.getJobID().getId()),
@@ -1543,15 +1564,7 @@ public class MapTask extends Task {
           outputPath.toString(),
           outputIndexPath.toString()
       );
-      String key = OpsUtils.buildKeyMapCompleted(
-          InetAddress.getLocalHost().getHostName(),
-          Integer.toString(mapId.getJobID().getId()),
-          Integer.toString(mapId.getTaskID().getId()
-          )
-      );
-      EtcdService.putToCompleted(key, conf.toString()); 
-      EtcdService.close();
-      LOG.info("OPS: Put ETCD, key: " + key + " mapConf: " + conf.toString());
+      reporter.setMapConf(conf);
     }
 
 

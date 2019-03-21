@@ -53,6 +53,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.SerializationFactory;
+import org.apache.hadoop.mapred.ops.MapConf;
 import org.apache.hadoop.mapred.IFile.Writer;
 import org.apache.hadoop.mapreduce.FileSystemCounter;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -650,6 +651,9 @@ abstract public class Task implements Writable, Configurable {
     private boolean done = true;
     private Object lock = new Object();
 
+    // For OPS
+    private MapConf mapConf = null;
+
     /**
      * flag that indicates whether progress update needs to be sent to parent.
      * If true, it has been set. If false, it has been reset. 
@@ -661,6 +665,14 @@ abstract public class Task implements Writable, Configurable {
                  TaskUmbilicalProtocol umbilical) {
       this.umbilical = umbilical;
       this.taskProgress = taskProgress;
+    }
+
+    // For OPS
+    public void setMapConf(MapConf conf) {
+      this.mapConf = conf;
+    }
+    public MapConf getMapConf() {
+      return this.mapConf;
     }
 
     // getters and setters for flag
