@@ -201,7 +201,8 @@ public class RMContainerAllocator extends RMContainerRequestor
 
   /** For OPS **/
   private OPSContainerFilter opsFilter;
-  private MapTaskAlloc mapTaskAlloc;
+  private MapTaskAlloc mapFirstAlloc;
+  private MapTaskAlloc mapSecondAlloc;
   private ReduceTaskAlloc reduceTaskAlloc;
 
   public RMContainerAllocator(ClientService clientService, AppContext context) {
@@ -309,21 +310,40 @@ public class RMContainerAllocator extends RMContainerRequestor
   @Override
   protected synchronized void heartbeat() throws Exception {
     // OPS: wait for MapTaskAlloc
-    if(this.mapTaskAlloc == null) {
+    if (this.mapFirstAlloc == null) {
       // Get from etcd
-      String alloc = EtcdService.get(OpsUtils.buildKeyMapTaskAlloc(Integer.toString(getJob().getID().getId())));
-      if(alloc == "" || alloc == null) {
+      String alloc = EtcdService.get(OpsUtils.buildKeyMapTaskFirstAlloc(Integer.toString(getJob().getID().getId())));
+      if (alloc == "" || alloc == null) {
         System.out.println("heartbeat: wait for mapTaskAlloc.");
         return;
       }
       Gson gson = new Gson();
-      this.mapTaskAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
-      System.out.println("heartbeat: get mapTaskAlloc -> " + this.mapTaskAlloc.toString());
+      this.mapFirstAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
+      System.out.println("heartbeat: get mapFirstAlloc -> " + this.mapFirstAlloc.toString());
 
-      Map<String, Integer> mapPreAlloc = this.mapTaskAlloc.getMapPreAlloc();
+      Map<String, Integer> mapPreAlloc = this.mapFirstAlloc.getMapPreAlloc();
       for(String host : mapPreAlloc.keySet()) {
-        this.opsFilter.addMapLimit(host, mapPreAlloc.get(host));
+        this.opsFilter.incrMapLimit(host, mapPreAlloc.get(host));
       }
+      this.opsFilter.setMapScheStep(1);
+
+      scheduleFirstMaps();
+    } else if (this.mapSecondAlloc == null) {
+      // Get from etcd
+      String alloc = EtcdService.get(OpsUtils.buildKeyMapTaskSecondAlloc(Integer.toString(getJob().getID().getId())));
+      if(alloc == "" || alloc == null) {
+        System.out.println("heartbeat: wait for mapSecondAlloc.");
+        return;
+      }
+      Gson gson = new Gson();
+      this.mapSecondAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
+      System.out.println("heartbeat: get mapSecondAlloc -> " + this.mapSecondAlloc.toString());
+
+      Map<String, Integer> mapPreAlloc = this.mapSecondAlloc.getMapPreAlloc();
+      for(String host : mapPreAlloc.keySet()) {
+        this.opsFilter.incrMapLimit(host, mapPreAlloc.get(host));
+      }
+      this.opsFilter.setMapScheStep(2);
 
       scheduleAllMaps();
     }
@@ -862,6 +882,25 @@ public class RMContainerAllocator extends RMContainerRequestor
       scheduledRequests.addMap(reqEvent);
     }
     pendingMaps.clear();
+  }
+
+  public void scheduleFirstMaps() {
+    System.out.println("scheduleFirstMaps");
+    Iterator<ContainerRequestEvent> it = this.pendingMaps.iterator();
+    while(it.hasNext()) {
+      ContainerRequestEvent reqEvent = it.next();
+      String host = this.opsFilter.requestMapHost(reqEvent.getHosts());
+      System.out.println("scheduleFirstMaps: modify request host from " + Arrays.toString(reqEvent.getHosts()) + " to " + host);
+      if(host != null) {
+        String[] hosts = {host};
+        reqEvent.setHosts(hosts);
+        String[] racks = {"/default-rack"};
+        reqEvent.setRacks(racks);
+        scheduledRequests.addMap(reqEvent);
+        it.remove();
+      }
+    }
+    // TODO: Handlr the corner case
   }
   
   @Private

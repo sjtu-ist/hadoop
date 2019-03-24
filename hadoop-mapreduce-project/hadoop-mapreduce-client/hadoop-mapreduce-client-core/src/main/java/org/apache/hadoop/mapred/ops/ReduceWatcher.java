@@ -21,14 +21,12 @@ import com.coreos.jetcd.watch.WatchEvent;
 import com.coreos.jetcd.watch.WatchResponse;
 import org.apache.hadoop.mapreduce.task.reduce.LocalFetcher;
 
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
 public class ReduceWatcher extends Thread {
 
     private volatile boolean stopped = false;
-    private final String nodeIp = InetAddress.getLocalHost().getHostName();
     private final LocalFetcher fetcher;
     private final String key;
     private final String jobId;

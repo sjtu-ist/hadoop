@@ -47,15 +47,43 @@ public class OPSContainerFilter {
     private final Map<String, LinkedList<TaskAttemptId>> reduceHostMapping
             = new HashMap<String, LinkedList<TaskAttemptId>>();
 
+    private Integer mapScheStep = 0;
+
     public OPSContainerFilter(Job job) {
         this.job = job;
     }
 
-    public void addMapLimit(String hostname, int num) {
-        this.mapLimit.put(hostname, num);
+    public void setMapScheStep(Integer step) {
+        this.mapScheStep = step;
+    }
 
-        this.mapHostsNum.put(hostname, num);
-        System.out.println("addMapLimit: " + hostname + ", " + num);
+    public Integer getMapScheStep() {
+        return this.mapScheStep;
+    }
+
+    // public void addMapLimit(String hostname, int num) {
+    //     this.mapLimit.put(hostname, num);
+
+    //     this.mapHostsNum.put(hostname, num);
+    //     System.out.println("addMapLimit: " + hostname + ", " + num);
+    // }
+
+    public void incrMapLimit(String hostname, int num) {
+        if(this.mapLimit.containsKey(hostname)) {
+            int value = this.mapLimit.get(hostname);
+            this.mapLimit.put(hostname, value + num);
+        } else {
+            this.mapLimit.put(hostname, num);
+        }
+
+        if(this.mapHostsNum.containsKey(hostname)) {
+            int value = this.mapHostsNum.get(hostname);
+            this.mapHostsNum.put(hostname, value + num);
+        } else {
+            this.mapHostsNum.put(hostname, num);
+        }
+
+        System.out.println("incrMapLimit: " + hostname + ", " + num);
     }
 
     public void addReduceLimit(String hostname, int num) {
@@ -66,19 +94,36 @@ public class OPSContainerFilter {
     }
 
     // public String requestMapHost() {
-    //     if(this.mapHostsList.size() == 0) {
-    //         System.out.println("requestMapHost: mapHostsList is empty.");
-    //         return "";
+    //     String ret = "";
+    //     for(String host : this.mapHostsNum.keySet()) {
+    //         int num = this.mapHostsNum.get(host) - 1;
+    //         if(num == 0) {
+    //             this.mapHostsNum.remove(host);
+    //         } else {
+    //             this.mapHostsNum.put(host, num);
+    //         }
+    //         ret = host;
+    //         break;
     //     }
-    //     String host = this.mapHostsList.getFirst();
-    //     int num = this.mapHostsNum.get(host) - 1;
-    //     if(num == 0) {
-    //         this.mapHostsList.removeFirst();
-    //     } else {
-    //         this.mapHostsNum.put(host, num);
-    //     }
-    //     return host;
+    //     return ret;
     // }
+
+    public String requestMapHost(String[] hosts) {
+        String ret = null;
+        for (String host : hosts) {
+            if(this.mapHostsNum.containsKey(host)) {
+                int num = this.mapHostsNum.get(host) - 1;
+                ret = host;
+                if(num == 0) {
+                    this.mapHostsNum.remove(host);
+                } else {
+                    this.mapHostsNum.put(host, num);
+                }
+                break;
+            }
+        }
+        return ret;
+    }
 
     public String requestMapHostWithLocality(String[] hosts) {
         String ret = null;
