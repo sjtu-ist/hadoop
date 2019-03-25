@@ -333,19 +333,19 @@ public class RMContainerAllocator extends RMContainerRequestor
       String alloc = EtcdService.get(OpsUtils.buildKeyMapTaskSecondAlloc(Integer.toString(getJob().getID().getId())));
       if(alloc == "" || alloc == null) {
         System.out.println("heartbeat: wait for mapSecondAlloc.");
-        return;
+      } else {
+        Gson gson = new Gson();
+        this.mapSecondAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
+        System.out.println("heartbeat: get mapSecondAlloc -> " + this.mapSecondAlloc.toString());
+  
+        Map<String, Integer> mapPreAlloc = this.mapSecondAlloc.getMapPreAlloc();
+        for(String host : mapPreAlloc.keySet()) {
+          this.opsFilter.incrMapLimit(host, mapPreAlloc.get(host));
+        }
+        this.opsFilter.setMapScheStep(2);
+  
+        scheduleAllMaps();
       }
-      Gson gson = new Gson();
-      this.mapSecondAlloc = gson.fromJson(alloc, MapTaskAlloc.class);
-      System.out.println("heartbeat: get mapSecondAlloc -> " + this.mapSecondAlloc.toString());
-
-      Map<String, Integer> mapPreAlloc = this.mapSecondAlloc.getMapPreAlloc();
-      for(String host : mapPreAlloc.keySet()) {
-        this.opsFilter.incrMapLimit(host, mapPreAlloc.get(host));
-      }
-      this.opsFilter.setMapScheStep(2);
-
-      scheduleAllMaps();
     }
 
     scheduleStats.updateAndLogIfChanged("Before Scheduling: ");
