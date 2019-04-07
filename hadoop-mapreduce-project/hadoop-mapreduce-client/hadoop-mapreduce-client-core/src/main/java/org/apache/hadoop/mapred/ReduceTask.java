@@ -374,14 +374,14 @@ public class ReduceTask extends Task {
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "start");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "start");
     
     rIter = shuffleConsumerPlugin.run();
 
     // free up the data structures
     mapOutputFilesOnDisk.clear();
     
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "stop");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "stop");
 
     sortPhase.complete();                         // sort is complete
     setPhase(TaskStatus.Phase.REDUCE); 
@@ -390,7 +390,7 @@ public class ReduceTask extends Task {
     Class valueClass = job.getMapOutputValueClass();
     RawComparator comparator = job.getOutputValueGroupingComparator();
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "start");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "start");
 
     if (useNewApi) {
       runNewReducer(job, umbilical, reporter, rIter, comparator, 
@@ -401,7 +401,7 @@ public class ReduceTask extends Task {
     }
 
     shuffleConsumerPlugin.close();
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
     done(umbilical, reporter);
   }
 

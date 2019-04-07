@@ -306,7 +306,7 @@ public class MapTask extends Task {
     throws IOException, ClassNotFoundException, InterruptedException {
     this.umbilical = umbilical;
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "start");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "start");
 
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
@@ -345,7 +345,7 @@ public class MapTask extends Task {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }
 
-    LOG.info("[IST]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "stop");
+    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "stop");
 
     done(umbilical, reporter);
   }

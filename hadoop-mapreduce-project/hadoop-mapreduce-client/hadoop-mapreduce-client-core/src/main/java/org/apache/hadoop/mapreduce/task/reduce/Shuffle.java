@@ -148,6 +148,9 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     // stop the scheduler
     scheduler.close();
 
+    // OPS: Print shuffle metrics log
+    System.out.println("[OPS]-" + this.reduceId.getTaskID() + "-" + this.metrics.getNumBytes());
+
     copyPhase.complete(); // copy is already complete
     taskStatus.setPhase(TaskStatus.Phase.SORT);
     reduceTask.statusUpdate(umbilical);
