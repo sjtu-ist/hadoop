@@ -126,7 +126,27 @@ public class OPSContainerFilter {
         return host;
     }
 
-    public boolean filterMap(String hostname) {
+    public boolean canAssignMap(String hostname) {
+        if(!this.mapLimit.containsKey(hostname)) {
+            System.out.println("canAssignMap: Hostname " + hostname + " no limit.");
+            return true;
+        }
+        if(!this.mapHostMapping.containsKey(hostname)) {
+            this.mapHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        int limit = this.mapLimit.get(hostname);
+        int mapNum = this.mapHostMapping.get(hostname).size();
+        if(mapNum < limit) {
+            System.out.println("canAssignMap: Hostname: " + hostname 
+                + " mapNum: " + mapNum + " limit: " + limit);
+            return true;
+        }
+        System.out.println("canAssignMap: Hostname " + hostname 
+                + " meets limit. mapNum: " + mapNum + " limit: " + limit);
+        return false;
+    }
+
+    public boolean filterMap(String hostname, int num) {
         if(!this.mapLimit.containsKey(hostname)) {
             System.out.println("filterMap: Hostname " + hostname + " no limit.");
             return true;
@@ -136,17 +156,37 @@ public class OPSContainerFilter {
         }
         int limit = this.mapLimit.get(hostname);
         int mapNum = this.mapHostMapping.get(hostname).size();
-        if(mapNum < limit) {
+        if(mapNum + num <= limit) {
             System.out.println("filterMap: Hostname: " + hostname 
-                + " mapNum: " + mapNum + " limit: " + limit);
+                + " mapNum + num: " + (mapNum + num) + " limit: " + limit);
             return true;
         }
         System.out.println("filterMap: Hostname " + hostname 
-                + " meets limit. mapNum: " + mapNum + " limit: " + limit);
+                + " meets limit. mapNum + num: " + (mapNum + num) + " limit: " + limit);
         return false;
     }
 
-    public boolean filterReduce(String hostname) {
+    public boolean canAssignReduce(String hostname) {
+        if(!this.reduceLimit.containsKey(hostname)) {
+            System.out.println("canAssignReduce: Hostname " + hostname + " no limit.");
+            return true;
+        }
+        if(!this.reduceHostMapping.containsKey(hostname)) {
+            this.reduceHostMapping.put(hostname, new LinkedList<TaskAttemptId>());
+        }
+        int limit = this.reduceLimit.get(hostname);
+        int reduceNum = this.reduceHostMapping.get(hostname).size();
+        if(reduceNum < limit) {
+            System.out.println("canAssignReduce: Hostname: " + hostname 
+                + " reduceNum: " + reduceNum + " limit: " + limit);
+            return true;
+        }
+        System.out.println("canAssignReduce: Hostname " + hostname 
+                + " meets limit. reduceNum: " + reduceNum + " limit: " + limit);
+        return false;
+    }
+
+    public boolean filterReduce(String hostname, int num) {
         if(!this.reduceLimit.containsKey(hostname)) {
             System.out.println("filterReduce: Hostname " + hostname + " no limit.");
             return true;
@@ -156,13 +196,13 @@ public class OPSContainerFilter {
         }
         int limit = this.reduceLimit.get(hostname);
         int reduceNum = this.reduceHostMapping.get(hostname).size();
-        if(reduceNum < limit) {
+        if(reduceNum + num <= limit) {
             System.out.println("filterReduce: Hostname: " + hostname 
-                + " reduceNum: " + reduceNum + " limit: " + limit);
+                + " reduceNum + num: " + (reduceNum + num) + " limit: " + limit);
             return true;
         }
         System.out.println("filterReduce: Hostname " + hostname 
-                + " meets limit. reduceNum: " + reduceNum + " limit: " + limit);
+                + " meets limit. reduceNum + num: " + (reduceNum + num) + " limit: " + limit);
         return false;
     }
 
@@ -186,6 +226,9 @@ public class OPSContainerFilter {
         int target = n;
         List<String> hosts = new LinkedList<>();
         for (String host : this.mapLimit.keySet()){
+            if (!this.mapHostMapping.containsKey(host)) {
+                this.mapHostMapping.put(host, new LinkedList<TaskAttemptId>());
+            }
             int mapNum = this.mapHostMapping.get(host).size();
             int limit = this.mapLimit.get(host);
             if(mapNum < limit) {
@@ -211,6 +254,9 @@ public class OPSContainerFilter {
         int target = n;
         List<String> hosts = new LinkedList<>();
         for (String host : this.reduceLimit.keySet()){
+            if (!this.reduceHostMapping.containsKey(host)) {
+                this.reduceHostMapping.put(host, new LinkedList<TaskAttemptId>());
+            }
             int reduceNum = this.reduceHostMapping.get(host).size();
             int limit = this.reduceLimit.get(host);
             if(reduceNum < limit) {

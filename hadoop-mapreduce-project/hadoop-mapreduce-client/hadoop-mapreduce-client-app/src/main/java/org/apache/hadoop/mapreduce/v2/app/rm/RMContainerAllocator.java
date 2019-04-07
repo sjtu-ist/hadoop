@@ -332,38 +332,63 @@ public class RMContainerAllocator extends RMContainerRequestor
     List<Container> allocatedContainers = getResources();
 
     // For OPS: filter allocatedContainers.
-    Iterator<Container> it = allocatedContainers.iterator();
-    List<Container> reAskMapContainers = new LinkedList<>();
-    List<Container> reAskReduceContainers = new LinkedList<>();
-    while (it.hasNext()) {
-      Container allocated = it.next();
-      Priority priority = allocated.getPriority();
-      if (PRIORITY_REDUCE.equals(priority) && 
-          !this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
-        reAskReduceContainers.add(allocated);
-        System.out.println("reAskReduceContainers.add -> " + allocated.getId() + ", host -> " + allocated.getNodeId().getHost());
-      } else if(PRIORITY_MAP.equals(priority) &&
-          !this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
-        reAskMapContainers.add(allocated);
-        System.out.println("reAskMapContainers.add -> " + allocated.getId() + ", host -> " + allocated.getNodeId().getHost());
+    try {
+      Iterator<Container> it = allocatedContainers.iterator();
+      Map<String, Integer> mapCounter = new HashMap<>();
+      Map<String, Integer> reduceCounter = new HashMap<>();
+      List<Container> reAskMapContainers = new LinkedList<>();
+      List<Container> reAskReduceContainers = new LinkedList<>();
+      while (it.hasNext()) {
+        Container allocated = it.next();
+        Priority priority = allocated.getPriority(); 
+        if (PRIORITY_MAP.equals(priority)) {
+          String host = allocated.getNodeId().getHost();
+          if (!mapCounter.containsKey(host)) {
+            mapCounter.put(host, 0);
+          }
+          int num = mapCounter.get(host) + 1;
+          if (this.opsFilter.filterMap(host, num)) {
+            mapCounter.put(host, num);
+          } else {
+            reAskMapContainers.add(allocated);
+            System.out.println("reAskMapContainers.add -> " + allocated.getId() + ", host -> " + allocated.getNodeId().getHost());
+          }
+        } else if (PRIORITY_REDUCE.equals(priority)) {
+          String host = allocated.getNodeId().getHost();
+          if (!reduceCounter.containsKey(host)) {
+            reduceCounter.put(host, 0);
+          }
+          int num = reduceCounter.get(host) + 1;
+          if (this.opsFilter.filterReduce(host, num)) {
+            reduceCounter.put(host, num);
+          } else {
+            reAskReduceContainers.add(allocated);
+            System.out.println("reAskReduceContainers.add -> " + allocated.getId() + ", host -> " + allocated.getNodeId().getHost());
+          }
+        }
       }
-    }
-    if(reAskMapContainers.size() > 0){
-      List<String> mapHosts = this.opsFilter.getFreeMapHosts(reAskMapContainers.size());
-      String[] racks = {"/default-rack"};
-      for (int i = 0; i < reAskMapContainers.size() && i < mapHosts.size(); i++) {
-        String[] hosts = {mapHosts.get(i)};
-        addContainerReqOPS(hosts, racks, PRIORITY_MAP, 
-            reAskMapContainers.get(i).getResource(), mapNodeLabelExpression);
+      if(reAskMapContainers.size() > 0){
+        System.out.println("reAskMapContainers");
+        List<String> mapHosts = this.opsFilter.getFreeMapHosts(reAskMapContainers.size());
+        String[] racks = {"/default-rack"};
+        for (int i = 0; i < reAskMapContainers.size() && i < mapHosts.size(); i++) {
+          String[] hosts = {mapHosts.get(i)};
+          addContainerReqOPS(hosts, racks, PRIORITY_MAP, 
+          reAskMapContainers.get(i).getResource(), mapNodeLabelExpression);
+        }
       }
-    } else if(reAskReduceContainers.size() > 0) {
-      List<String> reduceHosts = this.opsFilter.getFreeReduceHosts(reAskReduceContainers.size());
-      String[] racks = {"/default-rack"};
-      for (int i = 0; i < reAskReduceContainers.size() && i < reduceHosts.size(); i++) {
-        String[] hosts = {reduceHosts.get(i)};
-        addContainerReqOPS(hosts, racks, PRIORITY_REDUCE,
-            reAskReduceContainers.get(i).getResource(), reduceNodeLabelExpression);
+      if(reAskReduceContainers.size() > 0) {
+        System.out.println("reAskReduceContainers");
+        List<String> reduceHosts = this.opsFilter.getFreeReduceHosts(reAskReduceContainers.size());
+        String[] racks = {"/default-rack"};
+        for (int i = 0; i < reAskReduceContainers.size() && i < reduceHosts.size(); i++) {
+          String[] hosts = {reduceHosts.get(i)};
+          addContainerReqOPS(hosts, racks, PRIORITY_REDUCE,
+          reAskReduceContainers.get(i).getResource(), reduceNodeLabelExpression);
+        }
       }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
 
 
@@ -387,22 +412,26 @@ public class RMContainerAllocator extends RMContainerRequestor
         // this heartbeat
 
         // OPS: wait for ReduceTaskAlloc
-        if(this.reduceTaskAlloc == null && getJob().getTotalReduces() != 0) {
-          // Get from etcd
-          String alloc = EtcdService.get(OpsUtils.buildKeyReduceTaskAlloc(Integer.toString(getJob().getID().getId())));
-          if(alloc == "" || alloc == null) {
-            System.out.println("heartbeat: wait for reduceTaskAlloc.");
-            scheduleStats.updateAndLogIfChanged("After Scheduling: ");
-            return;
+        try {
+          if(this.reduceTaskAlloc == null && getJob().getTotalReduces() != 0) {
+            // Get from etcd
+            String alloc = EtcdService.get(OpsUtils.buildKeyReduceTaskAlloc(Integer.toString(getJob().getID().getId())));
+            if(alloc == "" || alloc == null) {
+              System.out.println("heartbeat: wait for reduceTaskAlloc.");
+              scheduleStats.updateAndLogIfChanged("After Scheduling: ");
+              return;
+            }
+            Gson gson = new Gson();
+            this.reduceTaskAlloc = gson.fromJson(alloc, ReduceTaskAlloc.class);
+            System.out.println("heartbeat: get reduceTaskAlloc -> " + this.reduceTaskAlloc.toString());
+            
+            Map<String, Integer> reducePreAlloc = this.reduceTaskAlloc.getReducePreAlloc();
+            for(String host : reducePreAlloc.keySet()) {
+              this.opsFilter.addReduceLimit(host, reducePreAlloc.get(host));
+            }
           }
-          Gson gson = new Gson();
-          this.reduceTaskAlloc = gson.fromJson(alloc, ReduceTaskAlloc.class);
-          System.out.println("heartbeat: get reduceTaskAlloc -> " + this.reduceTaskAlloc.toString());
-
-          Map<String, Integer> reducePreAlloc = this.reduceTaskAlloc.getReducePreAlloc();
-          for(String host : reducePreAlloc.keySet()) {
-            this.opsFilter.addReduceLimit(host, reducePreAlloc.get(host));
-          }
+        } catch (Exception e) {
+          //TODO: handle exception
         }
         scheduleReduces(getJob().getTotalMaps(), completedMaps,
             scheduledRequests.maps.size(), scheduledRequests.reduces.size(),
@@ -1437,7 +1466,7 @@ public class RMContainerAllocator extends RMContainerRequestor
           continue;
         }
 
-        if(!this.opsFilter.filterReduce(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.canAssignReduce(allocated.getNodeId().getHost())) {
           continue;
         }
         // For OPS: assign reduce with locality
@@ -1547,7 +1576,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();        
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.canAssignMap(allocated.getNodeId().getHost())) {
           continue;
         }
 
@@ -1585,7 +1614,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.canAssignMap(allocated.getNodeId().getHost())) {
           continue;
         }
 
@@ -1621,7 +1650,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         Container allocated = it.next();
 
         // OPS filter here
-        if(!this.opsFilter.filterMap(allocated.getNodeId().getHost())) {
+        if(!this.opsFilter.canAssignMap(allocated.getNodeId().getHost())) {
           continue;
         }
 

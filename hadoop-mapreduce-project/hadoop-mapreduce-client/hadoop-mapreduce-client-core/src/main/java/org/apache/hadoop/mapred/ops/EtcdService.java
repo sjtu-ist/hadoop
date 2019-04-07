@@ -52,14 +52,18 @@ public class EtcdService {
      */
     public static String get(String key) {
         try {
-            return client.getKVClient().get(ByteSequence.fromString(key)).get().getKvs().get(0).getValue()
-                    .toStringUtf8();
+            List<KeyValue> lists = EtcdService.getKVs(key);
+            if (lists.size() != 0) {
+                return lists.get(0).getValue().toStringUtf8();
+            } else {
+                return null;
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
-
+    
     public static List<KeyValue> getKVs(String key) {
         GetOption getOption = GetOption.newBuilder().withPrefix(ByteSequence.fromString(key)).build();
         try {
