@@ -208,6 +208,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
       float transferRate = bytesPerMillis * BYTES_PER_MILLIS_TO_MBS;
       String individualProgress = "copy task(" + mapId + " succeeded"
           + " at " + mbpsFormat.format(transferRate) + " MB/s)";
+      System.out.println("[OPS]-" + copyMillis + "-" + bytes + "-" + transferRate + "-" + mapId + "-fetch_file");
       // update the aggregated status
       copyTimeTracker.add(startMillis, endMillis);
 
