@@ -544,6 +544,14 @@ class Fetcher<K,V> extends Thread {
       
       scheduler.copySucceeded(mapId, host, compressedLength, 
                               startTime, endTime, mapOutput);
+
+      float BYTES_PER_MILLIS_TO_MBS = 1000f / 1024 / 1024;
+      long copyMillis = (endTime - startTime);
+      if (copyMillis == 0) copyMillis = 1;
+      float bytesPerMillis = (float) compressedLength / copyMillis;
+      float transferRate = bytesPerMillis * BYTES_PER_MILLIS_TO_MBS;
+      System.out.println("[OPS]-" + this.id + "-" + copyMillis + "-" + System.currentTimeMillis() + "-" + compressedLength + "-" + transferRate + "-" + mapId + "-fetch_file");
+
       // Note successful shuffle
       remaining.remove(mapId);
       metrics.successFetch();
