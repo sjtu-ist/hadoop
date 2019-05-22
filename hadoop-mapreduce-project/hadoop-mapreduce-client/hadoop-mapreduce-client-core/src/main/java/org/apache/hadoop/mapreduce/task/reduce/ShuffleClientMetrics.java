@@ -86,4 +86,7 @@ public class ShuffleClientMetrics implements Updater {
     }
     shuffleMetrics.update();
   }
+  public long getNumBytes() {
+    return this.numBytes;
+  }
 }
