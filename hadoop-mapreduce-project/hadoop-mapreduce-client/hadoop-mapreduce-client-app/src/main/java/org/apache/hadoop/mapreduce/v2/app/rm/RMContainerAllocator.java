@@ -19,6 +19,7 @@
 package org.apache.hadoop.mapreduce.v2.app.rm;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -292,8 +293,15 @@ public class RMContainerAllocator extends RMContainerRequestor
     EtcdService.initClient();
     List<KeyValue> workersKV = EtcdService.getKVs(OpsUtils.ETCD_NODES_PATH + "/worker");
     List<OpsNode> workers = new ArrayList<OpsNode>();
+    InetAddress addr = InetAddress.getLocalHost();
+    String masterHost = addr.getHostName().toLowerCase();
     for (KeyValue kv : workersKV) {
-      workers.add(gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class));
+      OpsNode worker = gson.fromJson(kv.getValue().toStringUtf8(), OpsNode.class);
+      // Avoid master host.
+      if (worker.getIp().equals(masterHost)) {
+        continue;
+      }
+      workers.add(worker);
     }
     LOG.info("OPS: Get OPS workers: " + Arrays.toString(workers.toArray()));
     JobConf job = new JobConf(
@@ -302,6 +310,7 @@ public class RMContainerAllocator extends RMContainerRequestor
         getJob().getTotalReduces(), 
         workers
       );
+    job.setMasterHost(masterHost);
     EtcdService.put(OpsUtils.buildKeyJob(job.getJobId()), gson.toJson(job));
     LOG.info("OPS: Register job: " + job.toString());
   }
