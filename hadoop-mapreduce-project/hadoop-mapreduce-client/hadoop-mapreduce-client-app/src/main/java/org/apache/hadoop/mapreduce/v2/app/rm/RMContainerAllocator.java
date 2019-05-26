@@ -333,7 +333,8 @@ public class RMContainerAllocator extends RMContainerRequestor
       for(String host : mapPreAlloc.keySet()) {
         this.opsFilter.addMapLimit(host, mapPreAlloc.get(host));
       }
-
+    }
+    if (this.pendingMaps.size() != 0 && this.mapTaskAlloc != null) {
       scheduleAllMaps();
     }
 

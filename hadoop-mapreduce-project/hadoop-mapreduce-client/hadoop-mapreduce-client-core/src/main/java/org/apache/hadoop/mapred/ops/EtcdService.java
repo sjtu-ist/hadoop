@@ -97,7 +97,7 @@ public class EtcdService {
     /** Put etcd, then wait for completion */
     public static void putToCompleted(String key, String value) {
         CompletableFuture<PutResponse> response = client.getKVClient().put(ByteSequence.fromString(key), ByteSequence.fromString(value));
-        System.out.println(response.join().toString());
+        // System.out.println(response.join().toString());
     }
 
     /**
