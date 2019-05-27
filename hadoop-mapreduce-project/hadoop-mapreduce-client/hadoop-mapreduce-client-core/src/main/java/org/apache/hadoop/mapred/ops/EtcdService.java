@@ -18,6 +18,7 @@ package org.apache.hadoop.mapred.ops;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.coreos.jetcd.Client;
@@ -41,7 +42,7 @@ public class EtcdService {
      */
     public static synchronized void initClient() {
         // client = Client.builder().endpoints(MRConfig.MAPREDUCE_OPS_MASTER).build();
-        String[] hosts = {"http://10.11.0.101:2379", "http://10.11.0.102:2379", "http://10.11.0.103:2379"};
+        String[] hosts = {"http://10.11.0.101:2379", "http://10.11.0.102:2379", "http://10.11.0.103:2379", "http://10.11.0.104:2379", "http://10.11.0.105:2379", "http://10.11.0.106:2379"};
         client = Client.builder().endpoints(hosts).build();
     }
 
@@ -97,7 +98,11 @@ public class EtcdService {
     /** Put etcd, then wait for completion */
     public static void putToCompleted(String key, String value) {
         CompletableFuture<PutResponse> response = client.getKVClient().put(ByteSequence.fromString(key), ByteSequence.fromString(value));
-        response.join();
+        try {
+            response.get(20, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         // System.out.println(response.join().toString());
     }
 
