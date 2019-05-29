@@ -178,8 +178,18 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     // TODO: Get Map task id from ETCD like reduce
     int numMapTasks = job.getNumMapTasks();
     LOG.info("OPS: numMapTasks == " + numMapTasks);
+    boolean earlyStop = false;
     try {
       while (!Thread.currentThread().isInterrupted()) {
+        if (earlyStop) {
+          if (this.paths.isEmpty()) {
+            wait(3000);
+            if (this.paths.isEmpty()) {
+              LOG.info("OPS: numMapTasks ==" + numMapTasks + ", early stop!");
+              break;
+            }
+          }
+        }
         HadoopPath path = getPath();
         LOG.info("OPS: Get ShuffleCompleted: " + path.toString());
 
@@ -199,6 +209,9 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
         if(numMapTasks == 0) {
           LOG.info("OPS: numMapTasks == 0, fetch complete");
           break;
+        } else if(numMapTasks <= 3) {
+          // Start earlyStop
+          earlyStop = true;
         }
       }
 
