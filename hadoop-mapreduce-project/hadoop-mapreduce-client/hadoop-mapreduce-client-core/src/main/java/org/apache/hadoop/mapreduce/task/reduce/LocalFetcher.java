@@ -136,6 +136,16 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     notifyAll();
   }
 
+  private synchronized boolean doEarlyStop() throws InterruptedException{
+    if (this.paths.isEmpty()) {
+      wait(3000);
+      if (this.paths.isEmpty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public void run() {
     LOG.info("OPS: LocalFetcher start");
     Gson gson = new Gson();
@@ -182,12 +192,9 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     try {
       while (!Thread.currentThread().isInterrupted()) {
         if (earlyStop) {
-          if (this.paths.isEmpty()) {
-            wait(3000);
-            if (this.paths.isEmpty()) {
-              LOG.info("OPS: numMapTasks ==" + numMapTasks + ", early stop!");
-              break;
-            }
+          if(doEarlyStop()) {
+            LOG.info("OPS: numMapTasks ==" + numMapTasks + ", early stop!");
+            break;
           }
         }
         HadoopPath path = getPath();
