@@ -223,7 +223,12 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
       }
 
       // OPS: Close etcd.
-      EtcdService.close();
+      try {
+        EtcdService.close();
+        
+      } catch (Exception e) {
+        LOG.error("OPS: EtcdService.close fail");
+      }
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
     }
