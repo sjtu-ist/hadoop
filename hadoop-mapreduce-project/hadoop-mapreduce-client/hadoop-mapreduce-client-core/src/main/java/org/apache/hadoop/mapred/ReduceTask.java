@@ -347,6 +347,9 @@ public class ReduceTask extends Task {
       return;
     }
     
+    // OPS:
+    EtcdService.initClient();
+
     // Initialize the codec
     codec = initCodec();
     RawKeyValueIterator rIter = null;
@@ -398,6 +401,14 @@ public class ReduceTask extends Task {
     }
     shuffleConsumerPlugin.close();
     
+
+    // OPS: Close etcd.
+    try {
+      EtcdService.close();
+      
+    } catch (Exception e) {
+      LOG.error("OPS: EtcdService.close fail");
+    }
     System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
 
     done(umbilical, reporter);

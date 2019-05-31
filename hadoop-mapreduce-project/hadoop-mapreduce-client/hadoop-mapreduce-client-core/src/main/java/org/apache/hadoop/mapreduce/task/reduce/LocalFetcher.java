@@ -86,7 +86,6 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
     this.localMapFiles = localMapFiles; // OPS: localMapFiles is null
 
     // TODO: OPS
-    EtcdService.initClient();
     this.jobId = Integer.toString(reduceId.getJobID().getId());
     this.reduceId = Integer.toString(reduceId.getTaskID().getId());
 
@@ -220,14 +219,6 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
           // Start earlyStop
           earlyStop = true;
         }
-      }
-
-      // OPS: Close etcd.
-      try {
-        EtcdService.close();
-        
-      } catch (Exception e) {
-        LOG.error("OPS: EtcdService.close fail");
       }
     } catch (InterruptedException | IOException e) {
       e.printStackTrace();
