@@ -495,7 +495,7 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
 
   // For OPS
   public synchronized void earlyStop() {
-    Log.info("OPS: Early stop reducer, set remainingMaps to 0.");
+    LOG.info("OPS: Early stop reducer, set remainingMaps to 0.");
     this.remainingMaps = 0;
   }
 
