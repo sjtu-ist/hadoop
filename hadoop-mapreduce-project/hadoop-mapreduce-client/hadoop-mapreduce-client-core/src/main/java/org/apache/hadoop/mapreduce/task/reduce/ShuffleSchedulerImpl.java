@@ -493,6 +493,13 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
     return true;
   }
 
+  // For OPS
+  public synchronized void earlyStop() {
+    Log.info("OPS: Early stop reducer, set remainingMaps to 0.");
+    this.remainingMaps = 0;
+  }
+
+
   /**
    * A structure that records the penalty for a host.
    */

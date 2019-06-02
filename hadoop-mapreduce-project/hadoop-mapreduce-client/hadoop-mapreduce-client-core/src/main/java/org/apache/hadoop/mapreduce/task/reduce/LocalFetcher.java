@@ -193,6 +193,7 @@ public class LocalFetcher<K,V> extends Fetcher<K, V> {
         if (earlyStop) {
           if(doEarlyStop()) {
             LOG.info("OPS: numMapTasks ==" + numMapTasks + ", early stop!");
+            scheduler.earlyStop();
             break;
           }
         }
