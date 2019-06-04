@@ -42,7 +42,7 @@ public class EtcdService {
      */
     public static synchronized void initClient() {
         // client = Client.builder().endpoints(MRConfig.MAPREDUCE_OPS_MASTER).build();
-        String[] hosts = {"http://10.11.0.101:2379", "http://10.11.0.102:2379", "http://10.11.0.103:2379", "http://10.11.0.104:2379", "http://10.11.0.105:2379", "http://10.11.0.106:2379"};
+        String[] hosts = {"http://172.31.16.183:2379", "http://172.31.19.23:2379", "http://172.31.19.244:2379","http://172.31.20.16:2379","http://172.31.20.200:2379","http://172.31.20.244:2379","http://172.31.20.75:2379","http://172.31.20.93:2379"};
         client = Client.builder().endpoints(hosts).build();
     }
 
