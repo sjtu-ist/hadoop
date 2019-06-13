@@ -20,6 +20,7 @@ package org.apache.hadoop.mapred;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.List;
 
 import org.apache.hadoop.mapred.Task.CombineOutputCollector;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,6 +44,8 @@ public interface ShuffleConsumerPlugin<K, V> {
   public RawKeyValueIterator run() throws IOException, InterruptedException;
 
   public void close();
+
+  public List<Long> getTimes();
 
   @InterfaceAudience.LimitedPrivate("mapreduce")
   @InterfaceStability.Unstable

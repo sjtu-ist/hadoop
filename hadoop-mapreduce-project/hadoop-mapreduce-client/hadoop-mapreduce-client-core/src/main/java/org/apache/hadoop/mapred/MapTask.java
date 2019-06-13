@@ -91,6 +91,11 @@ public class MapTask extends Task {
 
   private Progress mapPhase;
   private Progress sortPhase;
+
+  // For OPS log
+  private long begin = System.currentTimeMillis();
+  private long mapEnd = 0;
+  private long sortEnd = 0;
   
   {   // set phase for this task
     setPhase(TaskStatus.Phase.MAP); 
@@ -306,8 +311,6 @@ public class MapTask extends Task {
     throws IOException, ClassNotFoundException, InterruptedException {
     this.umbilical = umbilical;
 
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "start");
-
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
       // phase will govern the entire attempt's progress.
@@ -345,7 +348,11 @@ public class MapTask extends Task {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }
 
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-map-" + "stop");
+    // For OPS log
+    this.sortEnd = System.currentTimeMillis();
+    long mapPhase = this.mapEnd - this.begin;
+    long sortPhase = this.sortEnd - this.mapEnd;
+    System.out.println("[OPS]-mapTask-" + this.getTaskID().getId() + "-" + this.begin + "-" + mapPhase + "-" + sortPhase);
 
     done(umbilical, reporter);
   }
@@ -790,6 +797,10 @@ public class MapTask extends Task {
     try {
       input.initialize(split, mapperContext);
       mapper.run(mapperContext);
+
+      // For OPS log
+      this.mapEnd = System.currentTimeMillis();
+
       mapPhase.complete();
       setPhase(TaskStatus.Phase.SORT);
       statusUpdate(umbilical);

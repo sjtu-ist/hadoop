@@ -373,9 +373,7 @@ public class ReduceTask extends Task {
                   taskStatus, copyPhase, sortPhase, this,
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
-
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-shuffle-" + "start");
-    
+  
     rIter = shuffleConsumerPlugin.run();
 
     // free up the data structures
@@ -397,7 +395,18 @@ public class ReduceTask extends Task {
     }
 
     shuffleConsumerPlugin.close();
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + getTaskID() + "-reduce-" + "stop");
+
+    // For OPS log
+    List<Long> times = shuffleConsumerPlugin.getTimes();
+    long begin = times.get(0);
+    long copyTime = times.get(1);
+    long sortTime = times.get(2);
+    long reduceTime = System.currentTimeMillis();
+    long copyPhase = copyTime - begin;
+    long sortPhase = sortTime - copyTime;
+    long reducePhase = reduceTime - sortTime;
+    System.out.println("[OPS]-reduceTask-" + this.getTaskID().getId() + "-" + begin + "-" + copyPhase + "-" + sortPhase + "-" + reducePhase);
+
     done(umbilical, reporter);
   }
 

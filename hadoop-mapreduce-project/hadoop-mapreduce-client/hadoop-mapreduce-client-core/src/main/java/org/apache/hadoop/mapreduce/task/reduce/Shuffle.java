@@ -18,6 +18,8 @@
 package org.apache.hadoop.mapreduce.task.reduce;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -59,6 +61,11 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
   private TaskStatus taskStatus;
   private Task reduceTask; //Used for status updates
   private Map<TaskAttemptID, MapOutputFile> localMapFiles;
+
+  // For OPS log
+  private long begin = System.currentTimeMillis();
+  private long copyTime = 0;
+  private long sortTime = 0;
 
   @Override
   public void init(ShuffleConsumerPlugin.Context context) {
@@ -148,10 +155,8 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
     // stop the scheduler
     scheduler.close();
 
-    // OPS: Print shuffle metrics log
-    System.out.println("[OPS]-" + this.reduceId.getTaskID() + "-" + this.metrics.getNumBytes() + "-shuffle_total_size" );
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + reduceId + "-shuffle-" + "stop");
-    System.out.println("[OPS]-" + System.currentTimeMillis() + "-" + reduceId + "-reduce-" + "start");
+    // OPS: record phase time
+    this.copyTime = System.currentTimeMillis();
 
     copyPhase.complete(); // copy is already complete
     taskStatus.setPhase(TaskStatus.Phase.SORT);
@@ -172,6 +177,9 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
                                throwable);
       }
     }
+
+    // OPS: record phase time
+    this.sortTime = System.currentTimeMillis();
     
     return kvIter;
   }
@@ -190,6 +198,16 @@ public class Shuffle<K, V> implements ShuffleConsumerPlugin<K, V>, ExceptionRepo
         scheduler.notifyAll();
       }
     }
+  }
+
+  // For OPS log
+  @Override
+  public List<Long> getTimes() {
+    List<Long> times = new ArrayList<>();
+    times.add(this.begin);
+    times.add(this.copyTime);
+    times.add(this.sortTime);
+    return times;
   }
   
   public static class ShuffleError extends IOException {

@@ -21,6 +21,9 @@ package org.apache.hadoop.mapreduce;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
+
+import java.util.List;
+
 import org.apache.hadoop.fs.LocalDirAllocator;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.mapred.Task.CombineOutputCollector;
@@ -81,6 +84,11 @@ public class TestShufflePlugin<K, V> {
 
     @Override
     public RawKeyValueIterator run() throws java.io.IOException, java.lang.InterruptedException{
+      return null;
+    }
+
+    @Override
+    public List<Long> getTimes() {
       return null;
     }
   }
